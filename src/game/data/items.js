@@ -1,0 +1,75 @@
+// ============================================================
+//  РЕЕСТР АРТЕФАКТОВ
+//  Одежда: cold — защита от холода (снижает потерю тепла).
+//  Оружие: dmg / rate (ударов в сек) / range (дальность, px).
+// ============================================================
+
+export const SLOT_NAMES = {
+  hat: "ГОЛОВА",
+  jacket: "КУРТКА",
+  pants: "ШТАНЫ",
+  boots: "САПОГИ",
+  mittens: "ВАРЕЖКИ",
+  weapon: "ОРУЖИЕ",
+};
+
+export const FISTS = {
+  id: "fists",
+  slot: "weapon",
+  name: "Кулаки",
+  tier: 0,
+  dmg: 5,
+  rate: 2.0,
+  range: 20,
+  art: null,
+};
+
+export const ITEMS = {
+  // --- одежда ---
+  hat1: { id: "hat1", slot: "hat", name: "Шапка-ушанка", tier: 1, cold: 8, art: "it_hat" },
+  hat3: { id: "hat3", slot: "hat", name: "Ушанка сталкера", tier: 3, cold: 22, art: "it_hat" },
+  jacket2: { id: "jacket2", slot: "jacket", name: "Куртка полярника", tier: 2, cold: 18, art: "it_jacket" },
+  jacket3: { id: "jacket3", slot: "jacket", name: "Экзокостюм «Север»", tier: 3, cold: 28, art: "it_jacket" },
+  pants1: { id: "pants1", slot: "pants", name: "Стеганые штаны", tier: 1, cold: 8, art: "it_pants" },
+  pants3: { id: "pants3", slot: "pants", name: "Полярные штаны", tier: 3, cold: 22, art: "it_pants" },
+  boots1: { id: "boots1", slot: "boots", name: "Бурки", tier: 1, cold: 7, art: "it_boots" },
+  boots3: { id: "boots3", slot: "boots", name: "Полярные ботинки", tier: 3, cold: 19, art: "it_boots" },
+  mittens1: { id: "mittens1", slot: "mittens", name: "Вязаные варежки", tier: 1, cold: 5, art: "it_mittens" },
+  mittens2: { id: "mittens2", slot: "mittens", name: "Меховые варежки", tier: 2, cold: 9, art: "it_mittens" },
+  // --- оружие ---
+  knife1: { id: "knife1", slot: "weapon", name: "Ржавый нож", tier: 1, dmg: 10, rate: 2.4, range: 22, art: "it_knife" },
+  knife2: { id: "knife2", slot: "weapon", name: "Охотничий нож", tier: 2, dmg: 15, rate: 2.6, range: 22, art: "it_knife" },
+  crowbar1: { id: "crowbar1", slot: "weapon", name: "Лом", tier: 1, dmg: 20, rate: 1.35, range: 26, art: "it_crowbar" },
+  crowbar3: { id: "crowbar3", slot: "weapon", name: "Монтировка «Гвоздь»", tier: 3, dmg: 36, rate: 1.15, range: 28, art: "it_crowbar" },
+};
+
+// Артефакты, раскладываемые по карте каждый забег
+export const RUN_LOOT = [
+  "hat1", "hat3", "jacket2", "jacket3", "pants1", "pants3", "boots1",
+  "boots3", "mittens1", "mittens2", "knife1", "knife2", "crowbar1", "crowbar3",
+];
+
+export const TIER_COLORS = ["#9fb6cc", "#9fb6cc", "#6fd6ff", "#ffb347"];
+
+// Лучшая одежда по слотам из схрона
+export function bestPerSlot(invIds) {
+  const best = {};
+  for (const id of invIds) {
+    const it = ITEMS[id];
+    if (!it || it.slot === "weapon") continue;
+    if (!best[it.slot] || it.cold > best[it.slot].cold) best[it.slot] = it;
+  }
+  return best;
+}
+export function insulationOf(invIds) {
+  const best = bestPerSlot(invIds);
+  return Object.values(best).reduce((s, it) => s + it.cold, 0);
+}
+// Доступное оружие: кулаки + всё найденное (по урону)
+export function weaponsOf(invIds) {
+  const w = invIds
+    .map((id) => ITEMS[id])
+    .filter((it) => it && it.slot === "weapon")
+    .sort((a, b) => a.dmg - b.dmg);
+  return [FISTS, ...w];
+}
