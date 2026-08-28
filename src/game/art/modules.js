@@ -588,6 +588,136 @@ const rhinoArt = defineArt({
   },
 });
 
+// ---------- мышь-мутант (крошечная, пищит на 12 кГц) ----------
+const PAL_MOUSE = { k: "#1c2430", m: "#b9c3d6", p: "#f2a0b0", e: "#10151f" };
+const M_A = [
+  "............",
+  "..kk....kk..",
+  ".kppk..kppk.",
+  ".kpmk..kmpk.",
+  "..kmmkkmmk..",
+  ".kmmmmmmmmk.",
+  ".kmemmmmemk.",
+  ".kmmmmmpmmk.",
+  "..kmmmmmmk.k",
+  "...kkkkkk.kk",
+  ".........kpk",
+];
+const M_B = [
+  "............",
+  "..kk....kk..",
+  ".kppk..kppk.",
+  ".kpmk..kmpk.",
+  "..kmmkkmmk..",
+  ".kmmmmmmmmk.",
+  ".kmemmmmemk.",
+  ".kmmmmmpmmk.",
+  "..kmmmmmmkk.",
+  "...kkkkkkk..",
+  "........kpkk",
+];
+const mouseArt = defineArt({
+  id: "mouse",
+  w: 12,
+  h: 11,
+  palette: PAL_MOUSE,
+  animations: {
+    idle: { fps: 3, frames: [M_A, M_B] },
+    walk: { fps: 14, frames: [M_A, M_B] },
+    windup: { fps: 6, frames: [M_B] },
+    attack: { fps: 10, frames: [M_B, M_A] },
+  },
+});
+
+// ---------- Ледяной голем (в 10 раз больше героя, рычит на 60 Гц) ----------
+const drawGolem = ({ eye = "#6fd6ff", raise = 0, step = 0 } = {}) => (p) => {
+  const K = "#0d1220", D = "#2e3f5c", B = "#4a6288", M = "#6f8cb4",
+    H = "#a9c4e4", C = "#6fd6ff";
+
+  // ===== руки (за туловищем) =====
+  const aTop = raise ? 8 : 15;
+  const aLen = 17;
+  p.rect(4, aTop, 6, aLen, K);
+  p.rect(5, aTop + 1, 4, aLen - 2, B);
+  p.rect(5, aTop + 1, 2, aLen - 2, M);
+  p.rect(3, aTop + aLen - 2, 8, 5, K);
+  p.rect(4, aTop + aLen - 1, 6, 3, D);
+  p.px(4, aTop + aLen - 1, C);
+  p.rect(30, aTop + 1, 6, aLen, K);
+  p.rect(31, aTop + 2, 4, aLen - 2, D);
+  p.rect(29, aTop + aLen - 1, 8, 5, K);
+  p.rect(30, aTop + aLen, 6, 3, D);
+
+  // ===== ноги =====
+  p.rect(10, 28, 8, 10, K);
+  p.rect(11, 29, 6, 9, B);
+  p.rect(11, 29, 2, 9, M);
+  p.rect(22, 28, 8, 10, K);
+  p.rect(23, 29, 6, 9, D);
+  p.rect(8, 37, 11, 2, K);
+  p.rect(21, 37, 11, 2, K);
+  if (step) p.px(8, 36, H);
+  else p.px(31, 36, H);
+
+  // ===== туловище =====
+  p.rect(8, 12, 24, 18, K);
+  p.rect(9, 13, 22, 16, B);
+  p.rect(9, 13, 6, 16, M);
+  p.rect(9, 13, 22, 4, H);
+  p.rect(27, 13, 4, 16, D);
+  // ледяное ядро в груди
+  p.rect(18, 17, 2, 7, C);
+  p.rect(16, 19, 6, 2, C);
+  p.px(19, 18, "#dfeaf7");
+  p.rect(12, 25, 16, 1, D);
+  p.rect(12, 27, 16, 1, D);
+
+  // ===== плечи =====
+  p.rect(5, 11, 30, 6, K);
+  p.rect(6, 12, 28, 4, M);
+  p.rect(6, 12, 28, 2, H);
+  p.rect(5, 7, 5, 5, K);
+  p.rect(6, 8, 3, 3, C);
+  p.px(7, 7, "#dfeaf7");
+  p.rect(30, 7, 5, 5, K);
+  p.rect(31, 8, 3, 3, C);
+  p.px(32, 7, "#dfeaf7");
+
+  // ===== голова =====
+  p.rect(14, 2, 12, 10, K);
+  p.rect(15, 3, 10, 8, B);
+  p.rect(15, 3, 3, 8, M);
+  p.rect(15, 3, 10, 2, H);
+  p.rect(23, 3, 2, 8, D);
+  p.rect(15, 5, 10, 1, D);
+  p.px(16, 7, eye); p.px(17, 7, eye);
+  p.px(21, 7, eye); p.px(22, 7, eye);
+  p.rect(16, 10, 8, 2, D);
+  // ледяная корона
+  p.rect(18, 0, 3, 3, K);
+  p.px(18, 1, C); p.px(19, 1, "#dfeaf7"); p.px(20, 1, C);
+  p.px(19, 0, C);
+};
+
+const golemArt = defineArt({
+  id: "golem",
+  w: 40,
+  h: 40,
+  palette: {},
+  animations: {
+    idle: { fps: 2, frames: [drawGolem()] },
+    walk: { fps: 3, frames: [drawGolem({ step: 0 }), drawGolem({ step: 1 })] },
+    windup: { fps: 6, frames: [drawGolem({ raise: 1, eye: "#a9e8ff" })] },
+    attack: {
+      fps: 8,
+      frames: [
+        drawGolem({ raise: 1, eye: "#d6f6ff" }),
+        drawGolem({ raise: 0, eye: "#d6f6ff", step: 1 }),
+      ],
+    },
+  },
+});
+
 // ---------- тепловой orb (процедурные кадры) ----------
 const orbArt = defineArt({
   id: "orb",
@@ -622,6 +752,8 @@ export const ART_MODULES = [
   boarArt,
   bruteArt,
   rhinoArt,
+  mouseArt,
+  golemArt,
   treeArt,
   hatArt,
   jacketArt,

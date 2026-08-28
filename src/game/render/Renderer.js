@@ -56,13 +56,17 @@ export class Renderer {
       Tx.add(e.x, e.y - 16, "-" + e.dmg, "#ffd9ac");
     });
     bus.on("kill", (e) => {
-      P.burst(e.x, e.y - 6, {
-        n: 16,
-        colors: ["#c23b3b", "#8a2a2a", "#e8f2ff", "#7d8f82"],
-        speed: 100,
-        life: 0.6,
+      const isGolem = e.type === "golem";
+      P.burst(e.x, e.y - (isGolem ? 40 : 6), {
+        n: isGolem ? 46 : 16,
+        colors: isGolem
+          ? ["#6fd6ff", "#a9e8ff", "#dfeaf7", "#4a6288", "#e8f2ff"]
+          : ["#c23b3b", "#8a2a2a", "#e8f2ff", "#7d8f82"],
+        speed: isGolem ? 150 : 100,
+        life: isGolem ? 0.9 : 0.6,
+        size: isGolem ? 2 : 1,
       });
-      Tx.add(e.x, e.y - 24, e.name.toUpperCase() + " ПАЛ", "#9fd8ff");
+      Tx.add(e.x, e.y - (isGolem ? 90 : 24), e.name.toUpperCase() + " ПАЛ", isGolem ? "#6fd6ff" : "#9fd8ff");
     });
     bus.on("hurt", (e) => {
       P.burst(e.x, e.y - 6, {
@@ -204,13 +208,16 @@ export class Renderer {
       m.fillStyle = "#6fd6ff";
       m.fillRect((pk.x / TILE) * k - 1, (pk.y / TILE) * k - 1, 3, 3);
     }
-    // мутанты (носорог — крупная метка)
+    // мутанты (гиганты — крупные метки)
     for (const e of sim.enemies) {
-      if (e.type === "rhino") {
+      if (e.type === "golem") {
+        m.fillStyle = blink ? "#6fd6ff" : "#a9e8ff";
+        m.fillRect((e.x / TILE) * k - 2, (e.y / TILE) * k - 2, 6, 6);
+      } else if (e.type === "rhino") {
         m.fillStyle = "#d6f6ff";
         m.fillRect((e.x / TILE) * k - 1, (e.y / TILE) * k - 1, 4, 4);
       } else {
-        m.fillStyle = "#ff4757";
+        m.fillStyle = e.type === "mouse" ? "#f2a0b0" : "#ff4757";
         m.fillRect((e.x / TILE) * k, (e.y / TILE) * k, 2, 2);
       }
     }

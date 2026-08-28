@@ -79,7 +79,14 @@ export default class Game {
       this.hitstop = 0.045;
       this.camera.addTrauma(0.22);
     });
-    b.on("kill", () => this.sfx.kill());
+    b.on("kill", (e) => {
+      this.sfx.kill();
+      if (e.type === "golem") {
+        this.camera.addTrauma(0.65);
+        // предсмертный стон исполина — ниже его обычного рыка
+        this.sfx.lowGrowl({ freq: 45, wave: "sawtooth", dur: 0.9 }, 0.2);
+      }
+    });
     b.on("hurt", () => {
       this.sfx.hurt();
       this.camera.addTrauma(0.5);
@@ -91,7 +98,11 @@ export default class Game {
       this.camera.addTrauma(0.45);
     });
     b.on("orb", () => this.sfx.orb());
-    b.on("growl", () => this.sfx.growl());
+    b.on("growl", (e) => {
+      this.sfx.growl(e.voice, e.soft);
+      // низкий рёв сотрясает экран (голем, носорог)
+      if (e.voice && e.voice.freq < 100 && !e.soft) this.camera.addTrauma(0.3);
+    });
     b.on("heartbeat", () => this.sfx.heartbeat());
     b.on("pickup", (e) => {
       this.sfx.pickup(e.item.tier);

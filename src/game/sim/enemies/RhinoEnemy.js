@@ -19,6 +19,7 @@ export const def = {
   r: 12,
   h: 20,
   orbs: 2,
+  voice: { freq: 120, wave: "sawtooth", v: 0.14, dur: 0.5, every: 4.4 },
 };
 
 export class RhinoEnemy extends Enemy {

@@ -18,6 +18,7 @@ export const def = {
   r: 6,
   h: 16,
   orbs: 1,
+  voice: { freq: 520, wave: "square", v: 0.1, dur: 0.3, every: 3.6 },
 };
 
 export class BoarEnemy extends Enemy {}

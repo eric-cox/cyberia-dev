@@ -129,8 +129,82 @@ export class Sfx {
   orb() {
     this.tone({ f: 700, f2: 1050, t: 0.1, type: "triangle", v: 0.12 });
   }
-  growl() {
-    this.tone({ f: 90, f2: 60, t: 0.3, type: "sawtooth", v: 0.08 });
+  // ---------- ГОЛОСА ВРАГОВ ----------
+  // voice = { freq, wave, v, dur }.
+  // Высокие freq (≥4000) — тонкий писк с быстрым вибрато
+  // (мыши, мелкие твари); низкие — утробный рык с суб-грохотом
+  // (големы, носороги). Чем меньше и слабее зверь, тем выше писк.
+  growl(voice, soft = false) {
+    if (!this.ctx || this.muted || !voice) return;
+    const v = soft ? voice.v * 0.4 : voice.v;
+    if (voice.freq >= 4000) this.squeak(voice, v);
+    else this.lowGrowl(voice, v);
+  }
+
+  squeak(voice, v) {
+    const t0 = this.ctx.currentTime;
+    const { freq, dur } = voice;
+    // основной высокий тон
+    const o = this.ctx.createOscillator();
+    o.type = "sine";
+    o.frequency.setValueAtTime(freq, t0);
+    // быстрое вибрато — живое "пи-пи"
+    const lfo = this.ctx.createOscillator();
+    lfo.frequency.value = 34;
+    const lfoGain = this.ctx.createGain();
+    lfoGain.gain.value = freq * 0.09;
+    lfo.connect(lfoGain);
+    lfoGain.connect(o.frequency);
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(v, t0 + 0.015);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    o.connect(g);
+    g.connect(this.master);
+    o.start(t0);
+    lfo.start(t0);
+    o.stop(t0 + dur + 0.02);
+    lfo.stop(t0 + dur + 0.02);
+    // тихая нижняя гармоника, чтобы писк был слышен на ноутбуке
+    this.tone({ f: freq / 2, t: dur * 0.7, type: "sine", v: v * 0.5 });
+  }
+
+  lowGrowl(voice, v) {
+    const t0 = this.ctx.currentTime;
+    const { freq, dur } = voice;
+    const o = this.ctx.createOscillator();
+    o.type = voice.wave || "sawtooth";
+    o.frequency.setValueAtTime(freq * 1.25, t0);
+    o.frequency.exponentialRampToValueAtTime(Math.max(20, freq * 0.66), t0 + dur);
+    const flt = this.ctx.createBiquadFilter();
+    flt.type = "lowpass";
+    flt.frequency.value = Math.min(900, freq * 7);
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(v, t0 + 0.03);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    o.connect(flt);
+    flt.connect(g);
+    g.connect(this.master);
+    o.start(t0);
+    o.stop(t0 + dur + 0.02);
+    // суб-грохот для самых низких (голем)
+    if (freq < 100 && this.noiseBuf) {
+      const src = this.ctx.createBufferSource();
+      src.buffer = this.noiseBuf;
+      src.playbackRate.value = 0.35;
+      const nf = this.ctx.createBiquadFilter();
+      nf.type = "lowpass";
+      nf.frequency.value = 130;
+      const ng = this.ctx.createGain();
+      ng.gain.setValueAtTime(v * 0.8, t0);
+      ng.gain.exponentialRampToValueAtTime(0.0001, t0 + dur * 1.1);
+      src.connect(nf);
+      nf.connect(ng);
+      ng.connect(this.master);
+      src.start(t0, Math.random());
+      src.stop(t0 + dur * 1.1 + 0.02);
+    }
   }
   crackle() {
     this.noise({ t: 0.1, v: 0.05, f: 2000, type: "highpass" });

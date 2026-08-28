@@ -18,6 +18,7 @@ export const def = {
   r: 8,
   h: 20,
   orbs: 1,
+  voice: { freq: 230, wave: "sawtooth", v: 0.12, dur: 0.42, every: 4 },
 };
 
 export class BruteEnemy extends Enemy {

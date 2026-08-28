@@ -53,19 +53,33 @@
 | `hole` | `{ x, y }` | Renderer (ледяные брызги), Game (звук, тряска) |
 | `pickup` | `{ x, y, item, isNew, equipped, color, statText }` | Renderer (вспышка), Game (звук, тост, снапшот) |
 | `orb` | `{ x, y, heat, hp }` | Renderer (числа, тепло), Game (звук) |
-| `growl`, `heartbeat` | — | Game (звук) |
+| `growl` | `{ x, y, voice, name, soft }` | Game (голос врага; низкие freq → тряска) |
+| `heartbeat` | — | Game (звук) |
 | `death` | `{ cause, time, kills }` | Game (звук, статистика, экран смерти) |
 | `victory` | `{ time, kills }` | Game (звук, статистика, экран победы) |
 
 ## Как расширять
 
 ### Новый класс врага (механический, подземный…)
-1. Создать `sim/enemies/DrillBot.js`: `export const def = { type, art, name, hp, speed, aggro, range, dmg, cd, scale, r, h, orbs }`
+1. Создать `sim/enemies/DrillBot.js`: `export const def = { type, art, name, hp, speed, aggro, range, dmg, cd, scale, r, h, orbs, voice }`
    и класс `extends Enemy` с переопределёнными хуками
-   (`windupTime / strikeLunge / duringStrike / …`) либо собственным `update()`
-   (рытьё под снегом, телепорт, стрельба — что угодно).
+   (`windupTime / strikeLunge / duringStrike / windupVoice / …`) либо собственным
+   `update()` (рытьё под снегом, телепорт, стрельба — что угодно).
 2. Добавить строку в `sim/enemies/registry.js`.
 3. При желании — правила расселения в `EnemyFactory.js` и арт в `art/modules.js`.
+
+### Голоса врагов
+У каждого вида в `def.voice = { freq, wave, v, dur, every }`. Правило мира:
+**чем меньше и слабее зверь, тем выше частота**. Шкала:
+мышь 12 000 Гц (писк) → волк 900 → секач 520 → отродье 230 → носорог 120 →
+голем 60 Гц (утробный рык с суб-грохотом).
+
+- Зверь рычит при обнаружении игрока и периодически в погоне (тихо);
+  голем дополнительно рычит перед ударом (`windupVoice()` → true).
+- Рендер голоса — `systems/Sfx.js` (`growl`): `freq ≥ 4000` → `squeak`
+  (синус с быстрым вибрато + гармоника для слышимости), иначе `lowGrowl`
+  (пила с глиссандо вниз; `freq < 100` добавляет шумовой суб-грохот).
+- Низкий рёв (`freq < 100`) сотрясает экран — см. подписку на `growl` в `Game.js`.
 
 ### Лут
 - Новые предметы: реестр `data/items.js` (+ `RUN_LOOT`) и микро-модуль арта.

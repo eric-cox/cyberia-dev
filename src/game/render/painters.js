@@ -56,7 +56,7 @@ export function drawEnemy(ctx, e) {
 
   // полоса HP при уроне
   if (e.hp < e.maxHp) {
-    const w = Math.max(14, Math.round(e.r * 2 * e.def.scale));
+    const w = Math.min(80, Math.max(14, Math.round(e.r * 2 * e.def.scale)));
     const top = e.y - e.def.h * scale - 3;
     ctx.fillStyle = "#0a0f1e";
     ctx.fillRect(e.x - w / 2 - 1, top, w + 2, 3);

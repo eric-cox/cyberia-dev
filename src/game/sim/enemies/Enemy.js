@@ -37,6 +37,7 @@ export class Enemy extends Entity {
     this.kx = 0;
     this.ky = 0;
     this.growled = false;
+    this.voiceCd = 2 + rng() * 3; // периодический голос в погоне
   }
 
   // ---------- хуки для подклассов ----------
@@ -58,6 +59,24 @@ export class Enemy extends Entity {
   }
   chaseSpeed() {
     return this.def.speed;
+  }
+  // рыкнуть при замахе (телеграф сильных атак)? по умолчанию нет
+  windupVoice() {
+    return false;
+  }
+
+  // ---------- голос ----------
+  // У каждого класса свой голос (def.voice): чем меньше и слабее
+  // зверь, тем выше частота писка. soft — тихий фоновый рык в погоне.
+  speak(sim, soft = false) {
+    if (!this.def.voice) return;
+    sim.bus.emit("growl", {
+      x: this.x,
+      y: this.y,
+      voice: this.def.voice,
+      name: this.def.name,
+      soft,
+    });
   }
 
   // ---------- основной цикл ----------
@@ -90,7 +109,7 @@ export class Enemy extends Entity {
           this.state = "chase";
           if (!this.growled) {
             this.growled = true;
-            if (d < 180) sim.bus.emit("growl", { x: this.x, y: this.y });
+            if (d < 220) this.speak(sim);
           }
         }
         break;
@@ -100,9 +119,16 @@ export class Enemy extends Entity {
           this.state = "wander";
           break;
         }
+        // периодический тихий голос, пока преследует
+        this.voiceCd -= dt;
+        if (this.voiceCd <= 0) {
+          this.voiceCd = (this.def.voice ? this.def.voice.every : 4) + Math.random() * 2;
+          if (d < 300) this.speak(sim, true);
+        }
         if (d <= this.def.range + p.r + 2 && this.attackCd <= 0) {
           this.state = "windup";
           this.windT = this.windupTime();
+          if (this.windupVoice()) this.speak(sim);
           break;
         }
         this.moveToward(p.x, p.y, this.chaseSpeed(), dt, sim);
