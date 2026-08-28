@@ -1,5 +1,8 @@
 // ============================================================
-//  ЗВУК — крошечный WebAudio-синтезатор (без внешних файлов)
+//  systems/Sfx — крошечный WebAudio-синтезатор.
+//  Без внешних файлов: тон + шум + фильтры.
+//  Вызывается ТОЛЬКО из Game (подписчик событий симуляции) —
+//  сама симуляция о звуке не знает.
 // ============================================================
 export class Sfx {
   constructor() {
@@ -34,6 +37,7 @@ export class Sfx {
     return this.muted;
   }
 
+  // фоновый вой пурги: интенсивность растёт с замерзанием
   startWind() {
     if (!this.ctx || this.windGain) return;
     const src = this.ctx.createBufferSource();
@@ -49,7 +53,6 @@ export class Sfx {
     this.windGain.connect(this.master);
     src.start();
   }
-  // интенсивность пурги растёт, когда игрок замерзает
   setWind(i) {
     if (!this.windGain || !this.ctx) return;
     const t = this.ctx.currentTime;
@@ -93,6 +96,7 @@ export class Sfx {
     src.stop(t0 + t + 0.02);
   }
 
+  // --- игровые события ---
   swing() {
     this.noise({ t: 0.09, v: 0.16, f: 2400, q: 2, type: "highpass" });
   }
@@ -127,6 +131,12 @@ export class Sfx {
   }
   growl() {
     this.tone({ f: 90, f2: 60, t: 0.3, type: "sawtooth", v: 0.08 });
+  }
+  crackle() {
+    this.noise({ t: 0.1, v: 0.05, f: 2000, type: "highpass" });
+  }
+  heartbeat() {
+    this.tone({ f: 72, f2: 48, t: 0.1, type: "sine", v: 0.22 });
   }
   ui() {
     this.tone({ f: 660, t: 0.05, type: "square", v: 0.08 });

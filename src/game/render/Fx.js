@@ -1,6 +1,7 @@
 // ============================================================
-//  ЭФФЕКТЫ: частицы, дуга взмаха, всплывающий текст,
-//  тепловые орбы. Всё рисуется пиксельными прямоугольниками.
+//  render/Fx — чисто визуальные эффекты: частицы и
+//  всплывающие числа. Наполняются событиями симуляции
+//  (подписки — в Renderer), ничего не знают о логике.
 // ============================================================
 
 export class Particles {
@@ -15,7 +16,8 @@ export class Particles {
       const a = Math.random() * Math.PI * 2;
       const s = speed * (0.4 + Math.random() * 0.8);
       this.add({
-        x, y,
+        x,
+        y,
         vx: Math.cos(a) * s,
         vy: Math.sin(a) * s,
         life: life * (0.6 + Math.random() * 0.7),
@@ -80,7 +82,6 @@ export class Particles {
   }
 }
 
-// ---------- Всплывающий текст ----------
 export class FloatTexts {
   constructor() {
     this.list = [];
@@ -112,70 +113,18 @@ export class FloatTexts {
   }
 }
 
-// ---------- Тепловые орбы (падают с мутантов) ----------
-export class Orbs {
+// Удобная связка
+export class Fx {
   constructor() {
-    this.list = [];
+    this.particles = new Particles();
+    this.texts = new FloatTexts();
   }
-  spawn(x, y) {
-    const a = Math.random() * Math.PI * 2;
-    this.list.push({
-      x, y,
-      vx: Math.cos(a) * 40,
-      vy: Math.sin(a) * 40,
-      life: 9,
-      t: Math.random() * 5,
-    });
-  }
-  update(dt, target) {
-    const got = [];
-    for (let i = this.list.length - 1; i >= 0; i--) {
-      const o = this.list[i];
-      o.t += dt;
-      o.life -= dt;
-      if (o.life <= 0) {
-        this.list.splice(i, 1);
-        continue;
-      }
-      const dx = target.x - o.x;
-      const dy = target.y - o.y;
-      const d = Math.hypot(dx, dy);
-      if (d < 46) {
-        o.vx += (dx / d) * 420 * dt;
-        o.vy += (dy / d) * 420 * dt;
-      } else {
-        o.vx *= Math.pow(0.2, dt);
-        o.vy *= Math.pow(0.2, dt);
-      }
-      o.x += o.vx * dt;
-      o.y += o.vy * dt;
-      if (d < 8) {
-        got.push(o);
-        this.list.splice(i, 1);
-      }
-    }
-    return got;
+  update(dt) {
+    this.particles.update(dt);
+    this.texts.update(dt);
   }
   draw(ctx) {
-    for (const o of this.list) {
-      const blink = o.life < 2 && Math.floor(o.life * 6) % 2 === 0;
-      if (blink) continue;
-      const idx = Math.floor(o.t * 6) % 2;
-      const bob = Math.sin(o.t * 4) * 1;
-      // тёплое свечение
-      ctx.fillStyle = "rgba(255,140,66,0.16)";
-      ctx.fillRect((o.x - 4) | 0, (o.y - 4 + bob) | 0, 8, 8);
-      ctx.drawImage(
-        orbFrame(idx),
-        (o.x - 4) | 0,
-        (o.y - 4 + bob) | 0
-      );
-    }
+    this.particles.draw(ctx);
+    this.texts.draw(ctx);
   }
-}
-
-// кэш кадров орба через арт-систему
-import { artSystem } from "./art/pixel.js";
-function orbFrame(i) {
-  return artSystem.frameCanvas("orb", "idle", i);
 }
