@@ -64,6 +64,9 @@ export default function App() {
   // морозное дыхание: рамка льда растёт, когда тепло тает
   const heat = snap?.heat ?? 100;
   const frost = heat < 65 ? ((65 - heat) / 65) * 0.9 : 0;
+  // кровавая пульсация: жизнь на исходе
+  const hp = snap?.hp ?? 100;
+  const danger = hp < 35 ? (35 - hp) / 35 : 0;
 
   return (
     <div className="relative w-full h-full overflow-hidden scanlines" style={{ cursor: screen === "playing" ? "crosshair" : "default" }}>
@@ -79,6 +82,18 @@ export default function App() {
           boxShadow: "inset 0 0 140px 40px rgba(159,214,255,0.35)",
         }}
       />
+      {/* красная пульсация — жизнь вымораживается */}
+      {danger > 0 && (
+        <div
+          className="danger-pulse absolute inset-0 z-10 pointer-events-none"
+          style={{
+            opacity: danger,
+            background:
+              "radial-gradient(ellipse at center, rgba(255,71,87,0) 42%, rgba(255,71,87,0.42) 100%)",
+            boxShadow: "inset 0 0 120px 30px rgba(255,71,87,0.35)",
+          }}
+        />
+      )}
       {/* постоянная vignette */}
       <div
         className="absolute inset-0 z-10 pointer-events-none"

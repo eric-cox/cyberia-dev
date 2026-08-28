@@ -151,6 +151,19 @@ canvas {
   animation: hurt-flash 380ms steps(5) both;
 }
 
+@keyframes danger-pulse {
+  0%,
+  100% {
+    filter: brightness(0.55);
+  }
+  50% {
+    filter: brightness(1.35);
+  }
+}
+.danger-pulse {
+  animation: danger-pulse 0.85s ease-in-out infinite;
+}
+
 @keyframes title-drift {
   0%,
   100% {

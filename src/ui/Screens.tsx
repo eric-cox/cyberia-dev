@@ -46,8 +46,9 @@ export function MenuScreen({ snap, onStart }: { snap: Snapshot | null; onStart: 
           МЕРЗЛОТА
         </h1>
         <p className="font-term text-[13px] text-[#9fb6cc] mt-5 max-w-md mx-auto leading-relaxed">
-          Пурга съедает тепло. Собирай артефакты по карте — одежда греет,
-          оружие отгоняет мутантов. Всё найденное остаётся в схроне навсегда.
+          Пурга съедает тепло, а когда тепло кончается — мороз выедает жизнь.
+          Чем лучше одежда, тем медленнее тает и то и другое. Собирай
+          артефакты по карте: всё найденное остаётся в схроне навсегда.
         </p>
       </div>
 
@@ -89,13 +90,15 @@ export function DeathScreen({ snap, onRestart }: { snap: Snapshot | null; onRest
     <Overlay tint="radial-gradient(ellipse at center, rgba(40,6,12,0.55) 0%, rgba(5,8,15,0.9) 75%)">
       <div className="text-center mb-8">
         <div className="font-pixel text-[10px] tracking-[0.3em] text-[#ff4757] mb-4 blink-soft">
-          ТЕПЛО РАВНО НУЛЮ
+          {snap?.cause === "beast"
+            ? "ЖИЗНЬ ВЫБИЛИ МУТАНТЫ"
+            : "ТЕПЛО КОНЧИЛОСЬ — МОРОЗ ДОБИЛ ЖИЗНЬ"}
         </div>
         <h2
           className="font-pixel text-4xl md:text-5xl text-[#ff4757]"
           style={{ textShadow: "4px 4px 0 #0a1120, 8px 8px 0 rgba(255,71,87,0.25)" }}
         >
-          ВЫ ЗАМЁРЗЛИ
+          {snap?.cause === "beast" ? "ВАС РАСТЕРЗАЛИ" : "ВЫ ЗАМЁРЗЛИ"}
         </h2>
       </div>
       <div className="panel-pixel px-6 py-4 max-w-md mx-auto mb-8">

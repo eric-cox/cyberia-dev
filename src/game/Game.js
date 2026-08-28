@@ -36,7 +36,11 @@ import { Player, Enemy, Pickup, TreeProp } from "./entities.js";
 import { Particles, FloatTexts, Orbs } from "./effects.js";
 
 const HEAT_MAX = 100;
+const HP_MAX = 100;
 const BASE_DRAIN = 1.7; // тепло/сек без одежды
+const COLD_HP_DRAIN = 8.5; // жизнь/сек при нулевом тепле (без одежды)
+const CHILL_HP_DRAIN = 2.4; // жизнь/сек, когда тепло почти кончилось
+const HP_REGEN = 2; // жизнь/сек, когда тепло в достатке
 const HOLE_DMG = 12;
 const ZOOM = 2;
 
@@ -67,6 +71,10 @@ export default class Game {
     this.foundThisRun = 0;
     this.victoryShown = false;
     this.heat = HEAT_MAX;
+    this.hp = HP_MAX;
+    this.hpRate = 0;
+    this.coldTickT = 0;
+    this.deathCause = "cold";
     this.insulation = 0;
     this.weapons = weaponsOf([]);
     this.weaponIdx = 0;
@@ -171,6 +179,10 @@ export default class Game {
     this.foundThisRun = 0;
     this.victoryShown = false;
     this.heat = HEAT_MAX;
+    this.hp = HP_MAX;
+    this.hpRate = 0;
+    this.coldTickT = 0;
+    this.deathCause = "cold";
     this.refreshLoadout();
     this.hooks.onState && this.hooks.onState("playing");
     this.pushSnapshot();
@@ -306,23 +318,66 @@ export default class Game {
       this.heat -= 2.2 * dt;
     }
 
-    // --- холод ---
+    // --- холод: тепло тает; когда его нет — мороз выедает жизнь ---
     const drain = BASE_DRAIN * (100 / (100 + this.insulation));
     this.heat -= drain * dt;
     this.sfx.setWind(clamp(1 - this.heat / HEAT_MAX, 0, 1));
 
-    if (this.heat < 25) {
-      this.hbTimer -= dt;
-      if (this.hbTimer <= 0) {
-        this.hbTimer = 0.45 + (this.heat / 25) * 0.55;
-        this.sfx.tone({ f: 72, f2: 48, t: 0.1, type: "sine", v: 0.22 });
-      }
-    }
-
+    // скорость обморожения зависит от защиты одежды:
+    // exposure = 1 голышом, ~0.5 в полном обвесе
+    const exposure = 100 / (100 + this.insulation);
+    let hpDelta = 0;
     if (this.heat <= 0) {
       this.heat = 0;
-      this.die();
-      return;
+      hpDelta = -COLD_HP_DRAIN * exposure;
+      this.deathCause = "cold";
+      this.coldTickT -= dt;
+      if (this.coldTickT <= 0) {
+        this.coldTickT = 0.7;
+        const tick = Math.max(1, Math.round(-hpDelta * 0.7));
+        this.texts.add(
+          p.x + (Math.random() * 12 - 6),
+          p.y - 18,
+          "-" + tick,
+          "#ff4757"
+        );
+        this.particles.burst(p.x, p.y - 8, {
+          n: 4,
+          colors: ["#7fd7ff", "#bfe3ff", "#e8f2ff"],
+          speed: 26,
+          life: 0.5,
+        });
+        this.sfx.noise({ t: 0.1, v: 0.05, f: 2000, type: "highpass" });
+      }
+    } else if (this.heat < 25) {
+      hpDelta = -CHILL_HP_DRAIN * exposure;
+      this.deathCause = "cold";
+      this.coldTickT -= dt;
+      if (this.coldTickT <= 0) {
+        this.coldTickT = 1.4;
+        this.texts.add(p.x, p.y - 18, "-1", "#ff8a94");
+      }
+    } else if (this.heat > 55 && this.hp < HP_MAX) {
+      hpDelta = HP_REGEN;
+    }
+    if (hpDelta !== 0) {
+      this.hp = clamp(this.hp + hpDelta * dt, 0, HP_MAX);
+      this.hpRate = hpDelta;
+      if (this.hp <= 0) {
+        this.die(this.deathCause);
+        return;
+      }
+    } else {
+      this.hpRate = 0;
+    }
+
+    // сердцебиение, когда жизнь или тепло на исходе
+    if (this.hp < 35 || this.heat < 20) {
+      this.hbTimer -= dt;
+      if (this.hbTimer <= 0) {
+        this.hbTimer = 0.4 + (clamp(this.hp, 0, 35) / 35) * 0.55;
+        this.sfx.tone({ f: 72, f2: 48, t: 0.1, type: "sine", v: 0.22 });
+      }
     }
 
     // --- мутанты ---
@@ -350,7 +405,9 @@ export default class Game {
     const got = this.orbs.update(dt, p);
     for (const o of got) {
       this.heat = Math.min(HEAT_MAX, this.heat + 6);
+      this.hp = Math.min(HP_MAX, this.hp + 5);
       this.texts.add(p.x, p.y - 16, "+6 ТЕПЛА", "#ffb347");
+      this.texts.add(p.x, p.y - 26, "+5 ЖИЗНИ", "#7dff8a");
       this.sfx.orb();
       this.particles.burst(p.x, p.y - 6, {
         n: 6,
@@ -445,12 +502,13 @@ export default class Game {
 
   damagePlayer(dmg, src) {
     if (this.state !== "playing") return;
-    this.loseHeat(dmg, null);
     const p = this.player;
+    this.hp = clamp(this.hp - dmg, 0, HP_MAX);
+    this.deathCause = "beast";
     p.flash = 0.16;
     this.camera.addTrauma(0.5);
     this.sfx.hurt();
-    this.texts.add(p.x, p.y - 18, "-" + dmg + " ТЕПЛА", "#ff4757");
+    this.texts.add(p.x, p.y - 18, "-" + dmg, "#ff4757");
     this.particles.burst(p.x, p.y - 6, {
       n: 8,
       colors: ["#ff4757", "#c23b3b", "#e8f2ff"],
@@ -463,6 +521,7 @@ export default class Game {
     }
     this.hooks.onHurt && this.hooks.onHurt();
     this.events.emit("player-damage", { dmg });
+    if (this.hp <= 0) this.die("beast");
   }
 
   loseHeat(v, label) {
@@ -470,7 +529,9 @@ export default class Game {
     if (label) this.texts.add(this.player.x, this.player.y - 26, label, "#7fd7ff");
   }
 
-  die() {
+  die(cause = "cold") {
+    this.deathCause = cause;
+    this.hp = 0;
     this.state = "dead";
     this.sfx.death();
     this.sfx.setWind(1);
@@ -676,6 +737,10 @@ export default class Game {
       state: this.state,
       heat: Math.max(0, Math.ceil(this.heat)),
       maxHeat: HEAT_MAX,
+      hp: Math.max(0, Math.ceil(this.hp)),
+      maxHp: HP_MAX,
+      hpRate: Math.round(this.hpRate * 10) / 10,
+      cause: this.deathCause,
       insulation: this.insulation,
       weapon: this.weapon
         ? { name: this.weapon.name, dmg: this.weapon.dmg, rate: this.weapon.rate }
