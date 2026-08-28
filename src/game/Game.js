@@ -149,15 +149,21 @@ export default class Game {
       this.pickups.push(new Pickup(pos.x, pos.y, it));
     }
 
-    // мутанты: дальше от центра — злее
+    // мутанты: к краю карты — плотнее, крупнее и злее;
+    // на самых окраинах бродят Ледяные носороги
     this.enemies = [];
-    for (let i = 0; i < 26; i++) {
-      const r = 13 + rng() * 43;
+    for (let i = 0; i < 34; i++) {
+      // pow(0.5) смещает распределение к внешним кольцам
+      const r = 12 + 44 * Math.pow(rng(), 0.5);
       let type = "wolf";
-      if (r > 22) type = rng() < 0.55 ? "boar" : "wolf";
-      if (r > 36) type = rng() < 0.45 ? "brute" : "boar";
-      const pos = this.world.freeSpot(Math.min(r, 54), Math.min(r + 5, 56), rng);
-      this.enemies.push(new Enemy(pos.x, pos.y, type, rng));
+      if (r > 20) type = rng() < 0.55 ? "boar" : "wolf";
+      if (r > 32) type = rng() < 0.5 ? "brute" : "boar";
+      if (r > 46) type = rng() < 0.3 ? "rhino" : "brute";
+      const pos = this.world.freeSpot(Math.min(r, 54), Math.min(r + 5, 57), rng);
+      // полярный множитель размера/свирепости (носорог уже огромен сам)
+      const mul =
+        type === "rhino" ? 1 : 1 + clamp((r - 16) / 42, 0, 1) * 0.6;
+      this.enemies.push(new Enemy(pos.x, pos.y, type, rng, mul));
     }
 
     this.particles.list.length = 0;
@@ -507,7 +513,9 @@ export default class Game {
       speed: 100,
       life: 0.6,
     });
-    this.orbs.spawn(e.x, e.y - 4);
+    // крупная тварь — больше тепла
+    const orbCount = e.type === "rhino" ? 2 : 1;
+    for (let i = 0; i < orbCount; i++) this.orbs.spawn(e.x, e.y - 4);
     this.texts.add(e.x, e.y - 24, e.def.name.toUpperCase() + " ПАЛ", "#9fd8ff");
     this.events.emit("kill", { type: e.type, x: e.x, y: e.y });
   }
@@ -733,10 +741,16 @@ export default class Game {
       m.fillStyle = "#6fd6ff";
       m.fillRect((pk.x / TILE) * k - 1, (pk.y / TILE) * k - 1, 3, 3);
     }
-    // мутанты
-    m.fillStyle = "#ff4757";
-    for (const e of this.enemies)
-      m.fillRect((e.x / TILE) * k, (e.y / TILE) * k, 2, 2);
+    // мутанты (носорог — крупная метка)
+    for (const e of this.enemies) {
+      if (e.type === "rhino") {
+        m.fillStyle = "#d6f6ff";
+        m.fillRect((e.x / TILE) * k - 1, (e.y / TILE) * k - 1, 4, 4);
+      } else {
+        m.fillStyle = "#ff4757";
+        m.fillRect((e.x / TILE) * k, (e.y / TILE) * k, 2, 2);
+      }
+    }
     // игрок
     if (this.player) {
       m.fillStyle = "#ffb347";

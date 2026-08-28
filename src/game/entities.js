@@ -85,16 +85,32 @@ export const ENEMY_TYPES = {
     cd: 2.6,
     scale: 1.25,
   },
+  // вдвое крупнее остальных; таранит на разгоне
+  rhino: {
+    art: "rhino",
+    name: "Ледяной носорог",
+    hp: 230,
+    speed: 55,
+    aggro: 200,
+    range: 27,
+    dmg: 26,
+    cd: 3.2,
+    scale: 2,
+  },
 };
 
 export class Enemy extends Entity {
-  constructor(x, y, type, rng) {
+  // mul — «полярный множитель»: чем дальше от центра, тем зверь
+  // крупнее и свирепее (масштабирует hp/урон/отрисовку)
+  constructor(x, y, type, rng, mul = 1) {
     super(x, y);
     this.type = type;
     this.def = ENEMY_TYPES[type];
-    this.r = type === "brute" ? 8 : 6;
-    this.hp = this.def.hp;
-    this.maxHp = this.def.hp;
+    this.mul = mul;
+    this.r = (type === "rhino" ? 12 : type === "brute" ? 8 : 6) * Math.min(mul, 1.3);
+    this.maxHp = Math.round(this.def.hp * mul);
+    this.hp = this.maxHp;
+    this.dmg = Math.round(this.def.dmg * mul);
     this.state = "wander";
     this.animT = rng() * 10;
     this.flash = 0;
@@ -107,6 +123,7 @@ export class Enemy extends Entity {
     this.strikeT = 0;
     this.kx = 0;
     this.ky = 0;
+    this.ramCd = 0;
     this.growled = false;
   }
 
@@ -151,7 +168,8 @@ export class Enemy extends Entity {
         }
         if (d <= this.def.range + p.r + 2 && this.attackCd <= 0) {
           this.state = "windup";
-          this.windT = this.type === "brute" ? 0.6 : 0.42;
+          this.windT =
+            this.type === "rhino" ? 0.7 : this.type === "brute" ? 0.6 : 0.42;
           break;
         }
         this.moveToward(p.x, p.y, this.def.speed, dt, game);
@@ -162,16 +180,29 @@ export class Enemy extends Entity {
         this.flip = p.x < this.x;
         if (this.windT <= 0) {
           this.state = "strike";
-          this.strikeT = 0.16;
+          const isRhino = this.type === "rhino";
+          this.strikeT = isRhino ? 0.34 : 0.16;
           const ang = Math.atan2(p.y - this.y, p.x - this.x);
-          this.kx = Math.cos(ang) * 150;
-          this.ky = Math.sin(ang) * 150;
-          if (d <= this.def.range + p.r + 9) game.damagePlayer(this.def.dmg, this);
+          // носорог делает длинный разгон-таран
+          const lunge = isRhino ? 300 : 150;
+          this.kx = Math.cos(ang) * lunge;
+          this.ky = Math.sin(ang) * lunge;
+          this.ramCd = 0;
+          if (d <= this.def.range + p.r + (isRhino ? 24 : 9))
+            game.damagePlayer(this.dmg, this);
         }
         break;
       }
       case "strike": {
         this.strikeT -= dt;
+        // таран: носорог давит массой, пока несётся
+        if (this.type === "rhino") {
+          this.ramCd -= dt;
+          if (this.ramCd <= 0 && d < this.def.range + p.r + 6) {
+            game.damagePlayer(this.dmg, this);
+            this.ramCd = 0.45;
+          }
+        }
         if (this.strikeT <= 0) {
           this.state = "chase";
           this.attackCd = this.def.cd;
@@ -199,22 +230,24 @@ export class Enemy extends Entity {
     else if (this.state === "strike") anim = "attack";
     else if (this.state === "wander") anim = Math.hypot(this.wx - this.x, this.wy - this.y) < 4 ? "idle" : "walk";
     const idx = artSystem.animIndex(art, anim, this.animT);
+    const sc = this.def.scale * this.mul;
     const shake = this.state === "windup" ? (Math.random() - 0.5) * 1.6 : 0;
     ctx.fillStyle = "rgba(10,15,30,0.35)";
-    const sw = this.type === "brute" ? 14 : 10;
+    const sw = Math.round(11 * sc);
     ctx.fillRect(Math.round(this.x - sw / 2), Math.round(this.y - 1), sw, 3);
     artSystem.draw(ctx, art, anim, idx, this.x + shake, this.y + 1, {
       flip: this.flip,
-      scale: this.def.scale,
+      scale: sc,
       white: this.flash > 0,
     });
-    // полоса HP при уроне
+    // полоса HP при уроне (размер под стать зверю)
     if (this.hp < this.maxHp) {
-      const w = 14;
+      const w = Math.round(14 * sc);
+      const by = this.y - Math.round(16 * sc);
       ctx.fillStyle = "#0a0f1e";
-      ctx.fillRect(this.x - w / 2 - 1, this.y - 18, w + 2, 3);
+      ctx.fillRect(this.x - w / 2 - 1, by, w + 2, 3);
       ctx.fillStyle = "#ff4757";
-      ctx.fillRect(this.x - w / 2, this.y - 17, (w * this.hp) / this.maxHp, 1);
+      ctx.fillRect(this.x - w / 2, by + 1, (w * this.hp) / this.maxHp, 1);
     }
   }
 }

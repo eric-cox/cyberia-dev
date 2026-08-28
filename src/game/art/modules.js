@@ -532,6 +532,62 @@ const crowbarArt = defineArt({
   },
 });
 
+// ---------- Ледяной носорог (процедурный кадр, крупный) ----------
+const drawRhino = ({ eye = "#ff4757", step = 0 } = {}) => (p) => {
+  const K = "#141a26", P = "#c7d3e8", M = "#93a5c4", H = "#d6f6ff", C = "#6fd6ff";
+  // четыре ноги-колонны; step поднимает опорную пару (нога короче)
+  const leg = (x, lift) => {
+    p.rect(x, 14, 3, 6 - lift * 2, K);
+    p.rect(x + 1, 15, 1, 4 - lift * 2, P);
+  };
+  const s = step ? 1 : 0;
+  leg(7, s); leg(10, 1 - s); leg(14, s); leg(17, 1 - s);
+  // туловище-бочонок
+  p.rect(6, 5, 13, 11, K);
+  p.rect(7, 6, 11, 9, P);
+  p.rect(7, 12, 11, 3, M);
+  // ледяные кристаллы на спине
+  const spike = (x, y) => {
+    p.px(x, y, K); p.px(x + 1, y, K); p.px(x + 2, y, K);
+    p.px(x, y - 1, C); p.px(x + 1, y - 1, C); p.px(x + 2, y - 1, C);
+    p.px(x + 1, y - 2, C);
+  };
+  spike(9, 5); spike(13, 4); spike(16, 5);
+  // голова
+  p.rect(1, 7, 7, 7, K);
+  p.rect(2, 8, 5, 5, P);
+  // морда
+  p.rect(0, 11, 3, 3, K);
+  p.px(1, 12, M);
+  // рог изо льда
+  p.rect(0, 3, 3, 9, K);
+  p.rect(1, 4, 1, 7, H);
+  p.px(1, 3, H);
+  // ухо
+  p.px(7, 6, K); p.px(8, 6, K); p.px(8, 7, P);
+  // глаз
+  p.px(5, 9, eye); p.px(6, 9, eye);
+};
+
+const rhinoArt = defineArt({
+  id: "rhino",
+  w: 20,
+  h: 20,
+  palette: {},
+  animations: {
+    idle: { fps: 2, frames: [drawRhino()] },
+    walk: { fps: 5, frames: [drawRhino({ step: 0 }), drawRhino({ step: 1 })] },
+    windup: { fps: 6, frames: [drawRhino(), drawRhino({ step: 1 })] },
+    attack: {
+      fps: 8,
+      frames: [
+        drawRhino({ eye: "#d6f6ff", step: 1 }),
+        drawRhino({ eye: "#d6f6ff" }),
+      ],
+    },
+  },
+});
+
 // ---------- тепловой orb (процедурные кадры) ----------
 const orbArt = defineArt({
   id: "orb",
@@ -565,6 +621,7 @@ export const ART_MODULES = [
   wolfArt,
   boarArt,
   bruteArt,
+  rhinoArt,
   treeArt,
   hatArt,
   jacketArt,
