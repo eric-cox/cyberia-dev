@@ -51,25 +51,7 @@ export const RUN_LOOT = [
 
 export const TIER_COLORS = ["#9fb6cc", "#9fb6cc", "#6fd6ff", "#ffb347"];
 
-// Лучшая одежда по слотам из схрона
-export function bestPerSlot(invIds) {
-  const best = {};
-  for (const id of invIds) {
-    const it = ITEMS[id];
-    if (!it || it.slot === "weapon") continue;
-    if (!best[it.slot] || it.cold > best[it.slot].cold) best[it.slot] = it;
-  }
-  return best;
-}
-export function insulationOf(invIds) {
-  const best = bestPerSlot(invIds);
-  return Object.values(best).reduce((s, it) => s + it.cold, 0);
-}
-// Доступное оружие: кулаки + всё найденное (по урону)
-export function weaponsOf(invIds) {
-  const w = invIds
-    .map((id) => ITEMS[id])
-    .filter((it) => it && it.slot === "weapon")
-    .sort((a, b) => a.dmg - b.dmg);
-  return [FISTS, ...w];
+// Полный объект предмета по id (для UI/снапшотов)
+export function itemOf(id) {
+  return ITEMS[id] || null;
 }

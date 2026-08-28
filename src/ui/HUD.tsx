@@ -1,4 +1,46 @@
 import { memo, useEffect, useRef, useState, type ReactNode } from "react";
+import { artSystem } from "../game/art/pixel.js";
+
+// ---------- пиксельная иконка предмета (рендер через арт-систему) ----------
+export function ItemIcon({
+  art,
+  size = 36,
+  dim = false,
+}: {
+  art: string | null;
+  size?: number;
+  dim?: boolean;
+}) {
+  const ref = useRef<HTMLCanvasElement | null>(null);
+  useEffect(() => {
+    const cv = ref.current;
+    if (!cv) return;
+    const ctx = cv.getContext("2d");
+    if (!ctx) return;
+    ctx.imageSmoothingEnabled = false;
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    if (!art) return;
+    const frame = artSystem.frameCanvas(art, "idle", 0);
+    if (!frame) return;
+    const s = size / Math.max(frame.width, frame.height);
+    const w = frame.width * s;
+    const h = frame.height * s;
+    ctx.drawImage(frame, (size - w) / 2, (size - h) / 2, w, h);
+  }, [art, size]);
+  return (
+    <canvas
+      ref={ref}
+      width={size}
+      height={size}
+      style={{
+        width: size,
+        height: size,
+        imageRendering: "pixelated",
+        opacity: dim ? 0.28 : 1,
+      }}
+    />
+  );
+}
 
 // ---------- типы снапшота из движка ----------
 export type InvItem = {
@@ -8,7 +50,18 @@ export type InvItem = {
   tier: number;
   cold: number;
   dmg: number;
+  rate: number;
+  range: number;
+  art: string | null;
   equipped: boolean;
+};
+export type EquippedMap = {
+  hat: InvItem | null;
+  jacket: InvItem | null;
+  pants: InvItem | null;
+  boots: InvItem | null;
+  mittens: InvItem | null;
+  weapon: InvItem | null;
 };
 export type Snapshot = {
   state: string;
@@ -19,8 +72,8 @@ export type Snapshot = {
   hpRate: number;
   cause: string;
   insulation: number;
-  weapon: { name: string; dmg: number; rate: number } | null;
-  weapons: { id: string; name: string; dmg: number; active: boolean }[];
+  weapon: { id: string; name: string; dmg: number; rate: number; art: string | null } | null;
+  equipped: EquippedMap;
   kills: number;
   time: number;
   found: number;
@@ -282,27 +335,23 @@ function HUD({
         </div>
       </div>
 
-      {/* низ слева: оружейная полка */}
+      {/* низ слева: оружие в руке (ровно одно) */}
       <div className="absolute bottom-4 left-4 panel-pixel px-3 py-2.5">
-        <div className="font-pixel text-[8px] text-[#4d6a8f] mb-2">
-          АРСЕНАЛ <span className="text-[#6fd6ff]">[Q]</span>
-        </div>
-        <div className="space-y-1">
-          {snap.weapons.map((w) => (
-            <div
-              key={w.id}
-              className={`font-term text-[12px] flex items-center gap-2 ${
-                w.active ? "text-[#ffb347] font-bold" : "text-[#4d6a8f]"
-              }`}
-            >
-              <span
-                className="inline-block w-2 h-2"
-                style={{ background: w.active ? "#ffb347" : "#1d2c44" }}
-              />
-              {w.name}
-              <span className="opacity-70">· {w.dmg}</span>
+        <div className="font-pixel text-[8px] text-[#4d6a8f] mb-2">В РУКЕ</div>
+        <div className="flex items-center gap-2.5">
+          {snap.weapon?.art && <ItemIcon art={snap.weapon.art} size={30} />}
+          <div className="leading-tight">
+            <div className="font-term text-[12px] font-bold text-[#ffb347]">
+              {snap.weapon?.name}
             </div>
-          ))}
+            <div className="font-term text-[10px] text-[#9fb6cc]">
+              урон <span className="text-[#ffd9ac] font-bold">{snap.weapon?.dmg}</span>
+              <span className="opacity-60"> · {(snap.weapon?.rate ?? 0).toFixed(1)}/с</span>
+            </div>
+          </div>
+        </div>
+        <div className="font-term text-[9px] text-[#4d6a8f] mt-1.5">
+          смена оружия — в снаряжении между играми
         </div>
       </div>
 

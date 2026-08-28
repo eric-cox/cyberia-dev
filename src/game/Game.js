@@ -22,14 +22,7 @@ import {
 import { artSystem } from "./art/pixel.js";
 import { ART_MODULES } from "./art/modules.js";
 import { generateWorld, renderTerrain, renderMinimapBase } from "./world.js";
-import {
-  ITEMS,
-  RUN_LOOT,
-  weaponsOf,
-  bestPerSlot,
-  insulationOf,
-  TIER_COLORS,
-} from "./data/items.js";
+import { ITEMS, RUN_LOOT, TIER_COLORS, FISTS, itemOf } from "./data/items.js";
 import { SaveSystem } from "./save.js";
 import { Sfx } from "./sfx.js";
 import { Player, Enemy, Pickup, TreeProp } from "./entities.js";
@@ -76,8 +69,6 @@ export default class Game {
     this.coldTickT = 0;
     this.deathCause = "cold";
     this.insulation = 0;
-    this.weapons = weaponsOf([]);
-    this.weaponIdx = 0;
     this.hitstop = 0;
     this.hbTimer = 0;
     this.snapTimer = 0;
@@ -188,16 +179,44 @@ export default class Game {
     this.pushSnapshot();
   }
 
+  // Экипировка берётся из схрона (Diablo-модель: по предмету на слот,
+  // одно оружие в руке). Меняется на экране между играми.
   refreshLoadout() {
-    this.insulation = insulationOf(this.save.data.inv);
-    this.weapons = weaponsOf(this.save.data.inv);
-    this.weaponIdx = clamp(this.weaponIdx, 0, this.weapons.length - 1);
-    // по умолчанию — лучшее из найденного
-    if (!this._weaponTouched) this.weaponIdx = this.weapons.length - 1;
+    this.insulation = this.save.insulation();
   }
 
   get weapon() {
-    return this.weapons[this.weaponIdx];
+    return this.save.weapon();
+  }
+
+  // ---------- управление экипировкой (из UI между играми) ----------
+  equipItem(id) {
+    const it = itemOf(id);
+    if (!it) return;
+    if (this.save.equip(id)) {
+      this.refreshLoadout();
+      this.sfx.ui();
+      this.pushSnapshot();
+    }
+  }
+
+  unequipSlot(slot) {
+    if (this.save.unequip(slot)) {
+      this.refreshLoadout();
+      this.sfx.ui();
+      this.pushSnapshot();
+    }
+  }
+
+  discardItem(id) {
+    const it = itemOf(id);
+    if (!it) return;
+    if (this.save.discard(id)) {
+      this.refreshLoadout();
+      this.sfx.noise({ t: 0.12, v: 0.14, f: 500, type: "lowpass" });
+      this.toast({ kind: "sys", text: `${it.name} — выброшено в пургу` });
+      this.pushSnapshot();
+    }
   }
 
   // ---------- главный цикл ----------
@@ -271,13 +290,6 @@ export default class Game {
     const p = this.player;
 
     if (cmd.toggleInventory) this.hooks.onToggleInventory && this.hooks.onToggleInventory();
-    if (cmd.cycleWeapon && this.weapons.length > 1) {
-      this._weaponTouched = true;
-      this.weaponIdx = (this.weaponIdx + 1) % this.weapons.length;
-      this.sfx.ui();
-      this.texts.add(p.x, p.y - 18, this.weapon.name.toUpperCase(), "#9fd8ff");
-      this.pushSnapshot();
-    }
 
     // --- движение (команда → симуляция; готово к сети) ---
     const slowMul = p.slowT > 0 ? 0.5 : 1;
@@ -542,11 +554,22 @@ export default class Game {
   }
 
   // ---------- артефакты ----------
+  // Подбор кладёт предмет в схрон. Автонадевание: одежда — если слот
+  // пуст или новинка теплее; оружие — только если в руке кулаки
+  // (в руке всегда одно оружие, менять — на экране между играми).
   collect(pk) {
     pk.dead = true;
     this.foundThisRun++;
     const it = pk.item;
     const isNew = this.save.addItem(it.id);
+
+    let equippedNow = false;
+    if (it.slot === "weapon") {
+      if (!this.save.equipped.weapon) equippedNow = this.save.equip(it.id);
+    } else {
+      const cur = itemOf(this.save.equipped[it.slot]);
+      if (!cur || (it.cold || 0) > (cur.cold || 0)) equippedNow = this.save.equip(it.id);
+    }
     this.refreshLoadout();
     this.sfx.pickup(it.tier);
     const col = TIER_COLORS[it.tier] || "#e8f2ff";
@@ -556,16 +579,19 @@ export default class Game {
       speed: 80,
       life: 0.55,
     });
+
+    const stat =
+      it.slot === "weapon" ? `урон ${it.dmg}` : `+${it.cold} к теплу`;
     this.toast({
       kind: "item",
-      text: isNew
-        ? it.slot === "weapon"
-          ? `${it.name} · урон ${it.dmg}`
-          : `${it.name} · +${it.cold} к теплу`
-        : `${it.name} — уже в схроне`,
+      text: !isNew
+        ? `${it.name} — уже в схроне`
+        : equippedNow
+        ? `${it.name} · надето · ${stat}`
+        : `${it.name} · в схрон · ${stat}`,
       tier: it.tier,
     });
-    this.events.emit("pickup", { item: it.id });
+    this.events.emit("pickup", { item: it.id, equipped: equippedNow });
 
     if (this.foundThisRun >= RUN_LOOT.length && !this.victoryShown) {
       this.victoryShown = true;
@@ -729,10 +755,26 @@ export default class Game {
     );
   }
 
-  // ---------- снапшот для HUD ----------
+  // ---------- снапшот для HUD / экрана снаряжения ----------
   pushSnapshot() {
-    const best = bestPerSlot(this.save.data.inv);
-    const equippedIds = new Set(Object.values(best).map((i) => i.id));
+    const eq = this.save.equipped;
+    const toItem = (id) => {
+      const it = ITEMS[id];
+      return it
+        ? {
+            id: it.id,
+            name: it.name,
+            slot: it.slot,
+            tier: it.tier,
+            cold: it.cold || 0,
+            dmg: it.dmg || 0,
+            rate: it.rate || 0,
+            range: it.range || 0,
+            art: it.art,
+          }
+        : null;
+    };
+    const w = this.weapon;
     const s = {
       state: this.state,
       heat: Math.max(0, Math.ceil(this.heat)),
@@ -742,30 +784,26 @@ export default class Game {
       hpRate: Math.round(this.hpRate * 10) / 10,
       cause: this.deathCause,
       insulation: this.insulation,
-      weapon: this.weapon
-        ? { name: this.weapon.name, dmg: this.weapon.dmg, rate: this.weapon.rate }
+      weapon: w
+        ? { id: w.id, name: w.name, dmg: w.dmg, rate: w.rate, art: w.art }
         : null,
-      weapons: this.weapons.map((w, i) => ({
-        id: w.id,
-        name: w.name,
-        dmg: w.dmg,
-        active: i === this.weaponIdx,
-      })),
       kills: this.kills,
       time: this.time,
       found: this.foundThisRun,
       total: RUN_LOOT.length,
+      // надето по слотам (Diablo)
+      equipped: {
+        hat: toItem(eq.hat),
+        jacket: toItem(eq.jacket),
+        pants: toItem(eq.pants),
+        boots: toItem(eq.boots),
+        mittens: toItem(eq.mittens),
+        weapon: toItem(eq.weapon),
+      },
+      // весь схрон
       inv: this.save.data.inv.map((id) => {
-        const it = ITEMS[id];
-        return {
-          id,
-          name: it.name,
-          slot: it.slot,
-          tier: it.tier,
-          cold: it.cold || 0,
-          dmg: it.dmg || 0,
-          equipped: equippedIds.has(id) || false,
-        };
+        const it = toItem(id);
+        return { ...it, equipped: this.save.isEquipped(id) };
       }),
       muted: this.sfx.muted,
       stats: this.save.snapshot(),

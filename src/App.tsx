@@ -6,6 +6,7 @@ import {
   DeathScreen,
   VictoryScreen,
   InventoryPanel,
+  LoadoutScreen,
 } from "./ui/Screens";
 
 type ScreenId = "menu" | "playing" | "dead" | "victory";
@@ -18,6 +19,7 @@ export default function App() {
   const [snap, setSnap] = useState<Snapshot | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [invOpen, setInvOpen] = useState(false);
+  const [loadoutOpen, setLoadoutOpen] = useState(false);
   const [hurtKey, setHurtKey] = useState(0);
 
   useEffect(() => {
@@ -26,7 +28,10 @@ export default function App() {
       onSnapshot: (s: Snapshot) => setSnap(s),
       onState: (st: string) => {
         setScreen(st as ScreenId);
-        if (st === "playing" || st === "dead") setInvOpen(false);
+        if (st === "playing" || st === "dead") {
+          setInvOpen(false);
+          setLoadoutOpen(false);
+        }
       },
       onToast: (t: { kind: string; text: string; tier?: number }) => {
         const id = Date.now() + Math.random();
@@ -46,10 +51,13 @@ export default function App() {
     };
   }, []);
 
-  // ESC закрывает схрон (движок перехватывает Tab/I сам)
+  // ESC закрывает схрон и снаряжение (движок перехватывает Tab/I сам)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.code === "Escape") setInvOpen(false);
+      if (e.code === "Escape") {
+        setInvOpen(false);
+        setLoadoutOpen(false);
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -59,7 +67,19 @@ export default function App() {
     gameRef.current?.sfx.unlock();
     gameRef.current?.startRun();
     setInvOpen(false);
+    setLoadoutOpen(false);
   }, []);
+
+  // ---------- экипировка (между играми) ----------
+  const openLoadout = useCallback(() => {
+    gameRef.current?.sfx.unlock();
+    gameRef.current?.sfx.ui();
+    setInvOpen(false);
+    setLoadoutOpen(true);
+  }, []);
+  const equipItem = useCallback((id: string) => gameRef.current?.equipItem(id), []);
+  const unequipSlot = useCallback((slot: string) => gameRef.current?.unequipSlot(slot), []);
+  const discardItem = useCallback((id: string) => gameRef.current?.discardItem(id), []);
 
   // морозное дыхание: рамка льда растёт, когда тепло тает
   const heat = snap?.heat ?? 100;
@@ -128,13 +148,29 @@ export default function App() {
         <InventoryPanel snap={snap} onClose={() => setInvOpen(false)} />
       )}
 
-      {screen === "menu" && <MenuScreen snap={snap} onStart={start} />}
-      {screen === "dead" && <DeathScreen snap={snap} onRestart={start} />}
+      {screen === "menu" && (
+        <MenuScreen snap={snap} onStart={start} onLoadout={openLoadout} />
+      )}
+      {screen === "dead" && (
+        <DeathScreen snap={snap} onRestart={start} onLoadout={openLoadout} />
+      )}
       {screen === "victory" && (
         <VictoryScreen
           snap={snap}
           onContinue={() => setScreen("playing")}
           onRestart={start}
+          onLoadout={openLoadout}
+        />
+      )}
+
+      {loadoutOpen && screen !== "playing" && (
+        <LoadoutScreen
+          snap={snap}
+          onEquip={equipItem}
+          onUnequip={unequipSlot}
+          onDiscard={discardItem}
+          onClose={() => setLoadoutOpen(false)}
+          onStart={start}
         />
       )}
     </div>
