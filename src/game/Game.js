@@ -312,6 +312,7 @@ export default class Game {
           equipped: eq.isEquipped(id),
         })),
         muted: this.sfx.muted,
+        wind: this.renderer.weather.windInfo(),
         stats: this.store.snapshot(),
       });
   }

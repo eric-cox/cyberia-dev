@@ -84,6 +84,7 @@ export type Snapshot = {
   inv: InvItem[];
   muted: boolean;
   stats: { bestTime: number; totalKills: number; runs: number; victories: number; inv: string[] };
+  wind: { angle: number; strength: number };
 };
 export type Toast = { id: number; kind: string; text: string; tier?: number };
 
@@ -339,6 +340,44 @@ function XpBar({ xp, xpNext, level }: { xp: number; xpNext: number; level: numbe
   );
 }
 
+// ---------- флюгер: направление и сила ветра ----------
+function WindVane({ wind }: { wind: { angle: number; strength: number } }) {
+  if (!wind) return null;
+  const deg = (wind.angle * 180) / Math.PI;
+  const segs = Math.round(wind.strength * 3); // 0..3
+  return (
+    <div className="flex items-center gap-2">
+      <span className="font-pixel text-[8px] text-[#4d6a8f]">ВЕТЕР</span>
+      <svg
+        width="18"
+        height="18"
+        viewBox="0 0 10 10"
+        shapeRendering="crispEdges"
+        style={{
+          transform: `rotate(${deg}deg)`,
+          transition: "transform 1.4s cubic-bezier(0.22, 1, 0.36, 1)",
+        }}
+      >
+        {/* стрелка направлена вдоль +X (по направлению ветра) */}
+        <path d="M1 4H6V2L10 5L6 8V6H1Z" fill="#6fd6ff" />
+      </svg>
+      <span className="flex gap-[2px]">
+        {[0, 1, 2].map((i) => (
+          <span
+            key={i}
+            className="inline-block w-[3px]"
+            style={{
+              height: 5 + i * 2,
+              background: i < segs ? "#6fd6ff" : "#1d2c44",
+              alignSelf: "flex-end",
+            }}
+          />
+        ))}
+      </span>
+    </div>
+  );
+}
+
 // ---------- HUD ----------
 function HUD({
   snap,
@@ -409,6 +448,9 @@ function HUD({
               {snap.found}/{snap.total}
             </span>
           </span>
+        </div>
+        <div className="panel-pixel px-3 py-2">
+          <WindVane wind={snap.wind} />
         </div>
       </div>
 
