@@ -2,15 +2,17 @@
 //  render/TerrainPainter — запекание ландшафта в canvas:
 //    paintTerrain(map)     → большой offscreen-canvas мира;
 //    paintMinimapBase(map) → база миникарты (1px на тайл).
-//  Функции от WorldMap: с появлением чанков здесь появится
-//  докраска по требованию — симуляцию это не затронет.
+//  Отображение ячеек живёт ТОЛЬКО здесь: параметры — в
+//  world/tiles.js, внешность — ниже. Новые ячейки = новая
+//  ветка отрисовки, симуляцию это не затрагивает.
 // ============================================================
-import { TILE, T } from "../core/Constants.js";
+import { TILE } from "../core/Constants.js";
+import { T } from "../world/tiles.js";
 import { mulberry32 } from "../core/Rng.js";
 
-const SNOW_BASE = ["#dfe9f5", "#cddcf0", "#b7c9e2", "#9fb4d3"];
-const SNOW_SPECK = ["#c9d8ec", "#b9cbe4", "#a5b9d6", "#8da4c6"];
-const SNOW_HI = ["#ffffff", "#e6f0fb", "#d5e4f6", "#c9d8ec"];
+const SNOW_BASE = ["#dfe9f5", "#cddcf0", "#b3c6e0"];
+const SNOW_SPECK = ["#c9d8ec", "#b9cbe4", "#9fb3d1"];
+const SNOW_HI = ["#ffffff", "#e6f0fb", "#d2e1f4"];
 
 export function paintTerrain(map) {
   const cv = document.createElement("canvas");
@@ -25,58 +27,29 @@ export function paintTerrain(map) {
       const px = tx * TILE;
       const py = ty * TILE;
 
-      if (t === T.HOLE) {
-        ctx.fillStyle = "#0b1a33";
+      if (t === T.ICE || t === T.ICE_SMOOTH) {
+        paintIce(ctx, map, tx, ty, px, py, t === T.ICE_SMOOTH, rng);
+      } else {
+        // снег (под скалами/деревьями тоже)
+        const depth = t <= T.SNOW_VDEEP ? t : 1;
+        ctx.fillStyle = SNOW_BASE[depth];
         ctx.fillRect(px, py, TILE, TILE);
-        ctx.fillStyle = "#060f22";
-        ctx.fillRect(px + 3, py + 3, TILE - 6, TILE - 6);
-        // ледяная кромка
-        for (let i = 0; i < 7; i++) {
-          ctx.fillStyle = rng() < 0.5 ? "#bfe3ff" : "#7fd7ff";
+        const n = 5 + Math.floor(rng() * 5);
+        for (let i = 0; i < n; i++) {
+          ctx.fillStyle = rng() < 0.62 ? SNOW_SPECK[depth] : SNOW_HI[depth];
           ctx.fillRect(
             px + Math.floor(rng() * TILE),
-            py + (rng() < 0.5 ? 0 : TILE - 1),
-            1,
-            1
-          );
-          ctx.fillRect(
-            px + (rng() < 0.5 ? 0 : TILE - 1),
             py + Math.floor(rng() * TILE),
             1,
             1
           );
         }
-        // трещины
-        ctx.fillStyle = "rgba(127,215,255,0.55)";
-        let cx = px + 2 + rng() * 6;
-        let cy = py + 2;
-        for (let s = 0; s < 9; s++) {
-          ctx.fillRect(cx | 0, cy | 0, 1, 1);
-          cx += rng() * 2 - 0.6;
-          cy += 1.1;
+        if (depth === 2) {
+          // бархан в очень глубоком снегу
+          ctx.fillStyle = SNOW_HI[2];
+          const wy = py + 3 + Math.floor(rng() * 8);
+          ctx.fillRect(px + 1, wy, TILE - 2 - Math.floor(rng() * 4), 1);
         }
-        continue;
-      }
-
-      // снег (под скалами/деревьями тоже)
-      const depth = t <= T.SNOW3 ? t : 1 + Math.floor(rng() * 2);
-      ctx.fillStyle = SNOW_BASE[depth];
-      ctx.fillRect(px, py, TILE, TILE);
-      const n = 5 + Math.floor(rng() * 5);
-      for (let i = 0; i < n; i++) {
-        ctx.fillStyle = rng() < 0.62 ? SNOW_SPECK[depth] : SNOW_HI[depth];
-        ctx.fillRect(
-          px + Math.floor(rng() * TILE),
-          py + Math.floor(rng() * TILE),
-          1,
-          1
-        );
-      }
-      if (depth === 3) {
-        // бархан в сугробе
-        ctx.fillStyle = SNOW_HI[3];
-        const wy = py + 3 + Math.floor(rng() * 8);
-        ctx.fillRect(px + 1, wy, TILE - 2 - Math.floor(rng() * 4), 1);
       }
 
       if (t === T.ROCK) {
@@ -102,23 +75,76 @@ export function paintTerrain(map) {
   return cv;
 }
 
+// ---------- лёд ----------
+function paintIce(ctx, map, tx, ty, px, py, smooth, rng) {
+  ctx.fillStyle = smooth ? "#cfe6f8" : "#a9cbe6";
+  ctx.fillRect(px, py, TILE, TILE);
+
+  if (smooth) {
+    // зеркальные блики-полосы
+    ctx.fillStyle = "#eaf6ff";
+    for (let i = 0; i < 3; i++) {
+      const sy = py + 2 + Math.floor(rng() * 11);
+      const sw = 3 + Math.floor(rng() * 6);
+      ctx.fillRect(px + Math.floor(rng() * (TILE - sw)), sy, sw, 1);
+    }
+    ctx.fillStyle = "#9fd8ff";
+    ctx.fillRect(px + Math.floor(rng() * 14), py + Math.floor(rng() * 14), 2, 1);
+  } else {
+    // трещины
+    ctx.fillStyle = "#7fa4c8";
+    let cx = px + 2 + rng() * 8;
+    let cy = py + 1;
+    for (let s = 0; s < 8; s++) {
+      ctx.fillRect(cx | 0, cy | 0, 1, 1);
+      cx += rng() * 2 - 0.7;
+      cy += 1.4;
+    }
+    ctx.fillStyle = "#93b8d9";
+    for (let i = 0; i < 4; i++)
+      ctx.fillRect(
+        px + Math.floor(rng() * TILE),
+        py + Math.floor(rng() * TILE),
+        1,
+        1
+      );
+  }
+
+  // искры
+  ctx.fillStyle = "#ffffff";
+  if (rng() < 0.55)
+    ctx.fillRect(px + Math.floor(rng() * TILE), py + Math.floor(rng() * TILE), 1, 1);
+
+  // тёмная кромка там, где лёд граничит со снегом/скалой
+  const ice = (x, y) => {
+    const tt = map.get(x, y);
+    return tt === T.ICE || tt === T.ICE_SMOOTH;
+  };
+  ctx.fillStyle = "#6f97bd";
+  if (!ice(tx, ty - 1)) ctx.fillRect(px, py, TILE, 1);
+  if (!ice(tx, ty + 1)) ctx.fillRect(px, py + TILE - 1, TILE, 1);
+  if (!ice(tx - 1, ty)) ctx.fillRect(px, py, 1, TILE);
+  if (!ice(tx + 1, ty)) ctx.fillRect(px + TILE - 1, py, 1, TILE);
+}
+
+// ---------- база миникарты (1px на тайл) ----------
 export function paintMinimapBase(map) {
   const cv = document.createElement("canvas");
   cv.width = map.size;
   cv.height = map.size;
   const ctx = cv.getContext("2d");
-  const snow = ["#c9d8ec", "#b0c3de", "#93aad0", "#7b96bf"];
+  const colors = {
+    [T.SNOW]: "#c9d8ec",
+    [T.SNOW_DEEP]: "#b0c3de",
+    [T.SNOW_VDEEP]: "#93aad0",
+    [T.ROCK]: "#3d4d6b",
+    [T.ICE]: "#7fb2d9",
+    [T.ICE_SMOOTH]: "#a9d7f2",
+    [T.TREE]: "#5a718f",
+  };
   for (let ty = 0; ty < map.size; ty++)
     for (let tx = 0; tx < map.size; tx++) {
-      const t = map.get(tx, ty);
-      ctx.fillStyle =
-        t === T.ROCK
-          ? "#3d4d6b"
-          : t === T.HOLE
-            ? "#1e4a73"
-            : t === T.TREE
-              ? "#5a718f"
-              : snow[t];
+      ctx.fillStyle = colors[map.get(tx, ty)] || "#05080f";
       ctx.fillRect(tx, ty, 1, 1);
     }
   return cv;

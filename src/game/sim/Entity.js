@@ -11,6 +11,8 @@ export class Entity {
     this.x = x;
     this.y = y;
     this.r = 5;
+    this.vx = 0; // инерционное движение — см. sim/Movement.js
+    this.vy = 0;
     this.dead = false;
   }
 }

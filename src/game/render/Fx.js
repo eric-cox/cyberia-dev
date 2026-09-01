@@ -46,17 +46,6 @@ export class Particles {
       });
     }
   }
-  // ледяные брызги провала
-  iceSplash(x, y) {
-    this.burst(x, y, {
-      n: 16,
-      colors: ["#7fd7ff", "#bfe3ff", "#e8f2ff"],
-      speed: 90,
-      life: 0.6,
-      size: 1,
-      grav: 160,
-    });
-  }
   update(dt) {
     for (let i = this.list.length - 1; i >= 0; i--) {
       const p = this.list[i];

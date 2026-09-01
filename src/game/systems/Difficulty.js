@@ -17,8 +17,6 @@ const PROFILES = {
     },
     heat: {
       baseDrain: 1.7, // тепло/сек без одежды
-      holeDamage: 12, // разовый урон теплу при падении в провал
-      holeDrain: 2.2, // тепло/сек, пока стоишь в провале
       coldDrain: 8.5, // жизнь/сек при heat == 0 (× exposure)
       chillDrain: 1.4, // жизнь/сек при heat < chillBelow (× exposure)
       chillBelow: 25, // порог обморожения

@@ -1,6 +1,7 @@
 // ============================================================
 //  sim/Player — состояние игрока и его таймеры.
-//  Движение и бой ведёт Simulation (см. sim/Simulation.js).
+//  Движение и бой ведёт Simulation (см. sim/Simulation.js),
+//  инерция — sim/Movement.js.
 // ============================================================
 import { Entity } from "./Entity.js";
 
@@ -14,8 +15,6 @@ export class Player extends Entity {
     this.animT = 0;
     this.attackT = 0; // перезарядка удара
     this.attackAnimT = 0; // длительность анимации замаха
-    this.slowT = 0; // замедление (после провала)
-    this.holeCd = 0; // неуязвимость к повторному провалу
     this.flash = 0; // белая вспышка при уроне
     this.lunge = 0; // рывок при ударе
   }

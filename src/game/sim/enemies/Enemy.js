@@ -10,6 +10,7 @@
 //  поведения (рытьё, телепорт, стрельба). Числа — в def.
 // ============================================================
 import { Entity } from "../Entity.js";
+import { steer } from "../Movement.js";
 
 export class Enemy extends Entity {
   // mul — «полярный множитель» силы (см. EnemyFactory)
@@ -86,13 +87,12 @@ export class Enemy extends Entity {
     this.attackCd -= dt;
     const d = Math.hypot(p.x - this.x, p.y - this.y);
 
-    // отдача от ударов игрока
+    // отдача от ударов — импульс в скорость (на льду зверя уносит)
     if (this.kx || this.ky) {
-      sim.moveEntity(this, this.kx * dt, this.ky * dt);
-      this.kx *= Math.pow(0.0005, dt);
-      this.ky *= Math.pow(0.0005, dt);
-      if (Math.abs(this.kx) < 2) this.kx = 0;
-      if (Math.abs(this.ky) < 2) this.ky = 0;
+      this.vx += this.kx;
+      this.vy += this.ky;
+      this.kx = 0;
+      this.ky = 0;
     }
 
     switch (this.state) {
@@ -162,13 +162,24 @@ export class Enemy extends Entity {
     this.animT += dt;
   }
 
+  // Движение с инерцией: на снегу зверь послушен, на льду —
+  // проскальзывает мимо и с трудом поворачивает.
   moveToward(tx, ty, speed, dt, sim) {
     const dx = tx - this.x;
     const dy = ty - this.y;
     const l = Math.hypot(dx, dy);
-    if (l < 3) return;
-    if (Math.abs(dx) > 2) this.flip = dx < 0;
-    const slow = sim.map.speedFactor(this.x, this.y);
-    sim.moveEntity(this, (dx / l) * speed * slow * dt, (dy / l) * speed * slow * dt);
+    let dvx = 0;
+    let dvy = 0;
+    if (l > 3) {
+      const cell = sim.map.cellAt(this.x, this.y);
+      const s = speed * cell.speed;
+      dvx = (dx / l) * s;
+      dvy = (dy / l) * s;
+      if (Math.abs(dx) > 2) this.flip = dx < 0;
+    }
+    steer(this, dvx, dvy, sim.map, dt);
+    const blocked = sim.moveEntity(this, this.vx * dt, this.vy * dt);
+    if (blocked.x) this.vx *= -0.25;
+    if (blocked.y) this.vy *= -0.25;
   }
 }

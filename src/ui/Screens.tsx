@@ -310,6 +310,7 @@ export function MenuScreen({
             <div><span className="key-cap mr-2">SPACE</span><span className="key-cap mr-2">ЛКМ</span>атака</div>
             <div><span className="key-cap mr-2">TAB</span>открыть схрон</div>
             <div><span className="key-cap mr-2">M</span>звук вкл/выкл</div>
+            <div className="text-[#a9d7f2]">лёд скользит — разгоняйся и заноси</div>
             <div className="text-[#6fd6ff]">снаряжение — между забегами</div>
           </div>
         </div>

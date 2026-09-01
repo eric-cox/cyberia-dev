@@ -111,10 +111,6 @@ export class Sfx {
     this.tone({ f: 320, f2: 40, t: 0.22, type: "square", v: 0.16 });
     this.noise({ t: 0.18, v: 0.12, f: 500, type: "lowpass" });
   }
-  splash() {
-    this.noise({ t: 0.32, v: 0.3, f: 420, type: "lowpass" });
-    this.tone({ f: 220, f2: 80, t: 0.2, type: "sine", v: 0.12 });
-  }
   pickup(tier) {
     const base = [520, 620, 740][Math.min(2, Math.max(0, tier - 1))];
     for (let i = 0; i < tier + 1; i++)

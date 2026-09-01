@@ -87,7 +87,6 @@ export class Renderer {
           life: 0.5,
         });
     });
-    bus.on("hole", (e) => P.iceSplash(e.x, e.y));
     bus.on("pickup", (e) =>
       P.burst(e.x, e.y - 6, {
         n: 14,

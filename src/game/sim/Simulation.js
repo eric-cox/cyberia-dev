@@ -10,11 +10,11 @@
 // Simulation можно вынести в воркер/на сервер, а клиенту
 //  оставить Renderer + проигрывание команд.
 // ============================================================
-import { T } from "../core/Constants.js";
 import { clamp } from "../core/Utils.js";
 import { mulberry32 } from "../core/Rng.js";
 import { generateWorld } from "../world/WorldGen.js";
 import { placeRunLoot, collectArtifact, itemStatText, itemColor } from "../loot/RunLoot.js";
+import { steer } from "./Movement.js";
 import { Player } from "./Player.js";
 import { Orbs } from "./Orbs.js";
 import { populateEnemies } from "./enemies/EnemyFactory.js";
@@ -85,15 +85,18 @@ export class Simulation {
     const p = this.player;
     this.time += dt;
 
-    // --- движение ---
-    const slowMul = p.slowT > 0 ? 0.5 : 1;
-    const spd = p.speed * this.map.speedFactor(p.x, p.y) * slowMul;
-    this.moveEntity(p, cmd.mx * spd * dt, cmd.my * spd * dt);
-    p.moving = cmd.mx !== 0 || cmd.my !== 0;
-    if (p.moving) {
-      p.face = Math.atan2(cmd.my, cmd.mx);
-      p.animT += dt;
-    }
+    // --- движение: скорость с инерцией ячейки (см. Movement.js) ---
+    const cell = this.map.cellAt(p.x, p.y);
+    const spd = p.speed * cell.speed;
+    steer(p, cmd.mx * spd, cmd.my * spd, this.map, dt);
+    const blocked = this.moveEntity(p, p.vx * dt, p.vy * dt);
+    if (blocked.x) p.vx *= -0.25; // лёгкий отскок от препятствия
+    if (blocked.y) p.vy *= -0.25;
+    const speedNow = Math.hypot(p.vx, p.vy);
+    p.moving = speedNow > 14;
+    if (cmd.mx !== 0 || cmd.my !== 0) p.face = Math.atan2(cmd.my, cmd.mx);
+    else if (p.moving) p.face = Math.atan2(p.vy, p.vx); // занос на льду
+    if (p.moving) p.animT += dt;
 
     // --- атака: SPACE — по направлению движения,
     //            ЛКМ — в курсор (угол кладёт Game в cmd.aimAngle)
@@ -103,12 +106,10 @@ export class Simulation {
     // таймеры игрока
     p.attackT = Math.max(0, p.attackT - dt);
     p.attackAnimT = Math.max(0, p.attackAnimT - dt);
-    p.slowT = Math.max(0, p.slowT - dt);
-    p.holeCd = Math.max(0, p.holeCd - dt);
     p.lunge = Math.max(0, p.lunge - dt * 6);
     p.flash = Math.max(0, p.flash - dt);
 
-    this.updateColdAndHoles(dt, p);
+    this.updateCold(dt, p);
     if (this.state !== "playing") return;
 
     this.updateEnemies(dt, p);
@@ -116,21 +117,10 @@ export class Simulation {
     this.updatePickups(dt, p);
   }
 
-  // ---------- холод, жизнь, провалы ----------
-  updateColdAndHoles(dt, p) {
+  // ---------- холод и жизнь ----------
+  updateCold(dt, p) {
     const heatCfg = this.diff.heat;
     const insulation = this.equipment.insulation();
-
-    // провалы: разовый урон теплу + замедление, постоянный отток
-    if (this.map.tileAt(p.x, p.y) === T.HOLE) {
-      if (p.holeCd <= 0) {
-        p.holeCd = 1.1;
-        p.slowT = 1.6;
-        this.heat -= heatCfg.holeDamage;
-        this.bus.emit("hole", { x: p.x, y: p.y });
-      }
-      this.heat -= heatCfg.holeDrain * dt;
-    }
 
     // тепло тает; скорость снижает защита одежды
     const exposure = 100 / (100 + insulation);
@@ -301,7 +291,7 @@ export class Simulation {
     this.bus.emit("kill", { x: e.x, y: e.y, name: e.def.name, type: e.type, voice: e.def.voice });
   }
 
-  // Урон игроку (удары мутантов). Провалы бьют по теплу напрямую.
+  // Урон игроку (удары мутантов) — бьёт по жизни.
   damagePlayer(dmg, src) {
     if (this.state !== "playing") return;
     const p = this.player;
@@ -310,8 +300,10 @@ export class Simulation {
     p.flash = 0.16;
     this.bus.emit("hurt", { x: p.x, y: p.y, dmg });
     if (src) {
+      // отдача — импульс в скорость: на льду игрока уносит дальше
       const a = Math.atan2(p.y - src.y, p.x - src.x);
-      this.moveEntity(p, Math.cos(a) * 7, Math.sin(a) * 7);
+      p.vx += Math.cos(a) * 150;
+      p.vy += Math.sin(a) * 150;
     }
     if (this.hp <= 0) this.die("beast");
   }
@@ -324,10 +316,16 @@ export class Simulation {
   }
 
   // ---------- физика ----------
+  // Возвращает, по каким осям движение уткнулось в препятствие —
+  // вызывающий гасит/отражает скорость (см. update, Movement).
   moveEntity(e, dx, dy) {
+    const res = { x: false, y: false };
     const nx = clamp(e.x + dx, 10, this.map.widthPx - 10);
     if (!this.map.collidesCircle(nx, e.y, e.r)) e.x = nx;
+    else res.x = true;
     const ny = clamp(e.y + dy, 10, this.map.heightPx - 10);
     if (!this.map.collidesCircle(e.x, ny, e.r)) e.y = ny;
+    else res.y = true;
+    return res;
   }
 }

@@ -31,8 +31,8 @@
 | systems | `systems/Difficulty.js`, `systems/SaveStore.js`, `systems/Sfx.js` | Баланс (единый источник чисел), персистентность, звук |
 | data | `data/items.js` | Реестр артефактов (одежда/оружие, тиры) |
 | loot | `loot/Equipment.js`, `loot/RunLoot.js` | Diablo-экипировка (слоты, авто-надевание, выброс); раскладка лута по карте |
-| world | `world/WorldMap.js`, `world/WorldGen.js` | Данные карты + пространственные запросы; процедурная генерация |
-| sim | `sim/Simulation.js`, `sim/Player.js`, `sim/Pickup.js`, `sim/Orbs.js`, `sim/Entity.js` | Чистая игровая логика забега |
+| world | `world/tiles.js`, `world/WorldMap.js`, `world/WorldGen.js` | Реестр ячеек (speed/inertia/solid); данные карты + запросы; генерация |
+| sim | `sim/Simulation.js`, `sim/Movement.js`, `sim/Player.js`, `sim/Pickup.js`, `sim/Orbs.js`, `sim/Entity.js` | Чистая игровая логика забега; инерционное движение |
 | sim/enemies | `Enemy.js` (базовый ИИ) + файлы видов + `registry.js` + `EnemyFactory.js` | Типы врагов и правила расселения |
 | render | `Renderer.js`, `painters.js`, `TerrainPainter.js`, `Fx.js`, `Weather.js` | Вся отрисовка; эффекты-подписчики событий |
 | art | `art/pixel.js`, `art/modules.js` | Микромодули пиксель-арта: палитра + кадры (сетки или Painter-код) |
@@ -50,7 +50,6 @@
 | `kill` | `{ x, y, name, type, voice }` | Renderer (взрыв, «ПАЛ»), Game (звук + предсмертный вопль) |
 | `hurt` | `{ x, y, dmg }` | Renderer (число, брызги), Game (звук, тряска, мигание экрана) |
 | `cold-tick` | `{ x, y, amount, critical }` | Renderer (число, лёд), Game (треск) |
-| `hole` | `{ x, y }` | Renderer (ледяные брызги), Game (звук, тряска) |
 | `pickup` | `{ x, y, item, isNew, equipped, color, statText }` | Renderer (вспышка), Game (звук, тост, снапшот) |
 | `orb` | `{ x, y, heat, hp }` | Renderer (числа, тепло), Game (звук) |
 | `growl` | `{ x, y, voice, name, soft }` | Game (голос врага; низкие freq → тряска) |
@@ -105,15 +104,22 @@
   + `data/items.SLOT_NAMES`; `Equipment` работает по `item.slot` автоматически.
 
 ### Карта (on-demand, больше площадь, лабиринты, псевдо-3d)
-- Данные и запросы (`get/set/collidesCircle/speedFactor/freeSpot`) — в
+- Ячейки — дата-драйвны: `world/tiles.js` хранит `TILE_TABLE`, у каждой ячейки
+  `speed` (0..1, 0 = непроходимо) и `inertia` (0..1, скольжение). НОВАЯ ЯЧЕЙКА =
+  строка в таблице + палитра в `render/TerrainPainter.js`; физика подхватит сама.
+- Физика движения — `sim/Movement.js`: скорость «догоняет» желаемую со скоростью,
+  зависящей от инерции ячейки под ногами (снег послушен, гладкий лёд — каток).
+  Работает одинаково для игрока и врагов.
+- Данные и запросы (`get/set/cellAt/collidesCircle/freeSpot`) — в
   `world/WorldMap.js`. Чанковая подгрузка реализуется внутри класса,
   потребители не меняются.
-- Генераторы — `world/WorldGen.js`: новый генератор возвращает `WorldMap`.
+- Генераторы — `world/WorldGen.js`: новый генератор возвращает `WorldMap`
+  (сейчас: снег 3 глубин, замёрзшие озёра с гладким льдом, скалы, деревья).
 - Всё визуальное про ландшафт — `render/TerrainPainter.js`.
 
 ### Сложность
 - Все числа — `systems/Difficulty.js`. Новый профиль:
-  `registerProfile("hard", { heat: { baseDrain: 3 }, enemies: { count: 60 } })`
+  `registerProfile("hard", { heat: { baseDrain: 3 }, enemies: { types: { wolf: { edge: [8, 12] } } } })`
   и выбор в `Game` (`getDifficulty(режим)`).
 
 ### Визуал

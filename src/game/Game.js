@@ -91,10 +91,6 @@ export default class Game {
       this.hooks.onHurt && this.hooks.onHurt();
     });
     b.on("cold-tick", (e) => e.critical && this.sfx.crackle());
-    b.on("hole", () => {
-      this.sfx.splash();
-      this.camera.addTrauma(0.45);
-    });
     b.on("orb", () => this.sfx.orb());
     b.on("growl", (e) => {
       this.sfx.growl(e.voice, e.soft);
