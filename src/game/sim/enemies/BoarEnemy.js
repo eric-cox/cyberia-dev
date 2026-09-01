@@ -14,9 +14,8 @@ export const def = {
   range: 17,
   dmg: 12,
   cd: 2.0,
-  scale: 1.15,
-  r: 6,
-  h: 16,
+  r: 7,
+  h: 14, // сетка 18×14, scale=1
   xp: 25,
   voice: { freq: 520, wave: "square", v: 0.1, dur: 0.3, every: 3.6 },
 };

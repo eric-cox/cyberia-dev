@@ -13,17 +13,17 @@ import { Entity } from "../Entity.js";
 import { steer } from "../Movement.js";
 
 export class Enemy extends Entity {
-  // edgeScale — «полярный множитель»: во сколько раз зверь сильнее
-  // базового (растёт с удалением от центра, см. EnemyFactory).
-  constructor(x, y, def, rng, edgeScale = 1) {
+  // Враг одного типа ВСЕГДА одного размера и силы (масштаб к краям
+  // не растёт). Разные типы различаются габаритами за счёт размера
+  // арт-сетки при едином масштабе пикселя (scale = 1).
+  constructor(x, y, def, rng) {
     super(x, y);
     this.type = def.type;
     this.def = def;
-    this.edgeScale = edgeScale;
-    this.r = def.r * Math.min(edgeScale, 1.3);
-    this.maxHp = Math.round(def.hp * edgeScale);
+    this.r = def.r;
+    this.maxHp = def.hp;
     this.hp = this.maxHp;
-    this.dmg = Math.round(def.dmg * edgeScale);
+    this.dmg = def.dmg;
 
     this.state = "wander";
     this.animT = rng() * 10; // сдвиг фазы анимации, чтобы звери не шагали синхронно

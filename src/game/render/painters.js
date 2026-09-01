@@ -43,21 +43,21 @@ export function drawEnemy(ctx, e) {
 
   const idx = artSystem.animIndex(art, anim, e.animT);
   const shake = e.state === "windup" ? (Math.random() - 0.5) * 1.6 : 0;
-  const scale = e.def.scale * e.edgeScale;
 
   ctx.fillStyle = "rgba(10,15,30,0.35)";
   const sw = e.r * 2;
   ctx.fillRect(Math.round(e.x - sw / 2), Math.round(e.y - 1), sw, 3);
+  // Единый масштаб пикселя: все враги рисуются с scale = 1,
+  // а габариты типа заданы размером его арт-сетки.
   artSystem.draw(ctx, art, anim, idx, e.x + shake, e.y + 1, {
     flip: e.flip,
-    scale,
     white: e.flash > 0,
   });
 
   // полоса HP при уроне
   if (e.hp < e.maxHp) {
-    const w = Math.min(80, Math.max(14, Math.round(e.r * 2 * e.def.scale)));
-    const top = e.y - e.def.h * scale - 3;
+    const w = Math.min(80, Math.max(14, Math.round(e.r * 2)));
+    const top = e.y - e.def.h - 3;
     ctx.fillStyle = "#0a0f1e";
     ctx.fillRect(e.x - w / 2 - 1, top, w + 2, 3);
     ctx.fillStyle = "#ff4757";

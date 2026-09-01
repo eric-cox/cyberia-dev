@@ -13,9 +13,8 @@ export const def = {
   range: 15,
   dmg: 8,
   cd: 1.5,
-  scale: 1,
   r: 6,
-  h: 16, // высота арт-кадра (для полосы HP)
+  h: 16, // высота арт-кадра, px (сетка 16×16, scale=1)
   xp: 15,
   // слабый и мелкий — голос высокий
   voice: { freq: 900, wave: "sawtooth", v: 0.09, dur: 0.3, every: 3.2 },

@@ -13,10 +13,10 @@
 //  Точное число разыгрывается каждый забег; дробная часть —
 //  вероятность (0.3 → один голем с шансом 30%).
 //
-//  edgeScaleRange («полярный множитель») растёт от центра к краю:
-//  звери у окраин крупнее, живучее и больнее (на мышей не действует).
+//  Размер и сила врага НЕ зависят от позиции: особи одного типа
+//  всегда одинаковы. Разные типы различаются габаритами за счёт
+//  размера арт-сетки при едином масштабе пикселя (см. WORLD.md §3).
 // ============================================================
-import { clamp } from "../../core/Utils.js";
 import { makeEnemy } from "./registry.js";
 
 // Розыгрыш количества из диапазона [min, max].
@@ -30,9 +30,7 @@ function rollCount([min, max], rng) {
 
 export function populateEnemies(map, rng, diff) {
   const cfg = diff.enemies;
-  const { zones, types, edgeScaleRange } = cfg;
-  const innerRadius = zones.center[0]; // внутренняя граница центра
-  const outerRadius = zones.edge[1]; // внешняя граница края
+  const { zones, types } = cfg;
   const enemies = [];
 
   // Рассев n особей одного типа в кольце [ring[0]..ring[1]]
@@ -40,14 +38,7 @@ export function populateEnemies(map, rng, diff) {
     for (let i = 0; i < count; i++) {
       const r = ring[0] + rng() * (ring[1] - ring[0]);
       const pos = map.freeSpot(r, Math.min(r + 3, 56), rng);
-      // Насколько эта точка «полярная»: 0 у центра, 1 у края
-      const polar = clamp((r - innerRadius) / (outerRadius - innerRadius), 0, 1);
-      const edgeScale =
-        edgeScaleRange[0] + (edgeScaleRange[1] - edgeScaleRange[0]) * polar;
-      // мыши везде одинаково крошечные — множитель не применяется
-      enemies.push(
-        makeEnemy(type, pos.x, pos.y, rng, type === "mouse" ? 1 : edgeScale)
-      );
+      enemies.push(makeEnemy(type, pos.x, pos.y, rng));
     }
   };
 

@@ -209,102 +209,106 @@ const wolfArt = defineArt({
 });
 
 // ---------- секач (мутировавший кабан) ----------
-const B_TOP = [
-  "................",
-  "....kssk.kssk...",
-  "...ksssskssssk..",
-  "..kbbbbbbbbbbbk.",
-  ".kbbbbbbbbbbbbk.",
-  ".kbbbbbbbbbbbbk.",
-  "ktbbebbbbbbbbbbk".slice(0, 16),
-  "kttkbbbbbbbbbbbk",
-  "kttkbbbbbbbbbbbk",
-  ".ktkbbbbbbbbbbk.",
-];
-const B_LEGS_A = [
-  "..kbkbbbbbbkbk..",
-  "..kbkbbbbbbkbk..",
-  "..kkk......kkk..",
-  "................",
-  "................",
-  "................",
-];
-const B_LEGS_B = [
-  "..kbkbbbbbbkbk..",
-  ".kbk........kbk.",
-  ".kkk........kkk.",
-  "................",
-  "................",
-  "................",
-];
+// Сетка 22×14, единый пиксель (scale=1). Крупнее волка.
+const drawBoar = ({ step = 0, eye = "#ff3b4e" } = {}) => (p) => {
+  const K = "#1c2430", B = "#5f5248", M = "#463c34", E = eye,
+    T = "#e8f2ff", S = "#a8e6ff";
+  // ледяные наросты на спине
+  p.rect(9, 2, 3, 2, S); p.px(10, 1, S);
+  p.rect(14, 2, 3, 2, S); p.px(15, 1, S);
+  // тело-бочонок
+  p.rect(6, 4, 14, 8, K);
+  p.rect(7, 5, 12, 6, B);
+  p.rect(7, 9, 12, 2, M);
+  p.rect(7, 5, 12, 1, "#6f6156");
+  // голова
+  p.rect(1, 5, 6, 6, K);
+  p.rect(2, 6, 4, 4, B);
+  p.rect(2, 6, 4, 1, "#6f6156");
+  // рыло
+  p.rect(0, 7, 2, 3, K);
+  p.px(0, 8, M);
+  p.px(0, 7, "#8a786a");
+  // клыки (белые, вверх)
+  p.rect(2, 5, 1, 2, T);
+  p.px(3, 4, T);
+  // глаз
+  p.px(5, 7, E);
+  p.px(4, 7, E);
+  // ухо
+  p.px(6, 4, K); p.px(7, 4, K);
+  // ноги (4)
+  const lift = step ? 1 : 0;
+  p.rect(8, 12, 2, 2 - lift, K);
+  p.rect(12, 12, 2, 1 + lift, K);
+  p.rect(16, 12, 2, 2 - lift, K);
+  p.rect(19, 12, 2, 1 + lift, K);
+  // хвостик
+  p.px(21, 5, K); p.px(21, 6, K);
+};
 const boarArt = defineArt({
   id: "boar",
-  w: 16,
-  h: 16,
+  w: 22,
+  h: 14,
   palette: PAL_BOAR,
   animations: {
-    idle: { fps: 2, frames: [B_TOP.concat(B_LEGS_A)] },
-    walk: {
-      fps: 7,
-      frames: [B_TOP.concat(B_LEGS_A), B_TOP.concat(B_LEGS_B)],
-    },
-    windup: { fps: 2, frames: [B_TOP.concat(B_LEGS_A)] },
-    attack: { fps: 8, frames: [B_TOP.concat(B_LEGS_B)] },
+    idle: { fps: 2, frames: [drawBoar({ step: 0 })] },
+    walk: { fps: 7, frames: [drawBoar({ step: 0 }), drawBoar({ step: 1 })] },
+    windup: { fps: 2, frames: [drawBoar({ step: 0, eye: "#d6f6ff" })] },
+    attack: { fps: 8, frames: [drawBoar({ step: 1, eye: "#d6f6ff" })] },
   },
 });
 
 // ---------- отродье (крупный мутант) ----------
-const BR_ROWS = [
-  "....................",
-  ".......kkkkkk.......",
-  "......kppppppk......",
-  ".....kpeppeppk......",
-  ".....kppppppppk.....",
-  "......kppppppk......",
-  "...kkkkppppppkkkk...",
-  "..kpppkppppppkpppk..",
-  ".kppppkppppppkppppk.",
-  ".kpmppkpbbbbpkpmppk.",
-  ".kpppkppppppppkpppk.",
-  "..kppkppppppppkppk..",
-  "...kkppppppppppkk...",
-  ".....kppppppppk.....",
-  "....kppkppppkppk....",
-  "....kppkppppkppk....",
-  "....kppk....kppk....",
-  "...kpppk....kpppk...",
-  "...kkkkk....kkkkk...",
-  "....................",
-];
-const BR_LEGS_B = [
-  "....................",
-  "....kppkppppkppk....",
-  "...kppk.pppp.kppk...",
-  "...kppk......kppk...",
-  "..kpppk......kpppk..",
-  "..kkkkk......kkkkk..",
-];
+// Сетка 26×26, единый пиксель (scale=1). Сгорбленная фигура,
+// почти человеческие пропорции — от этого и страшно.
+const drawBrute = ({ step = 0, eye = "#6fd6ff" } = {}) => (p) => {
+  const K = "#141a26", P = "#c7d3e8", M = "#93a5c4", B = "#3a4660", E = eye;
+  // ледяные кристаллы на сгорбленной спине
+  p.px(7, 8, "#6fd6ff"); p.px(7, 7, "#6fd6ff");
+  p.px(20, 8, "#6fd6ff"); p.px(20, 7, "#6fd6ff");
+  p.px(13, 1, "#6fd6ff");
+  // голова (опущена вперёд)
+  p.rect(9, 3, 8, 7, K);
+  p.rect(10, 4, 6, 5, P);
+  p.rect(10, 4, 6, 1, M);
+  p.rect(10, 7, 6, 1, B);
+  // светящиеся глаза
+  p.px(11, 6, E);
+  p.px(14, 6, E);
+  // сгорбленное тело
+  p.rect(7, 9, 13, 11, K);
+  p.rect(8, 10, 11, 9, P);
+  p.rect(8, 10, 11, 2, M);
+  p.rect(8, 16, 11, 3, B);
+  // длинные руки до колен
+  p.rect(4, 10, 3, 9, K);
+  p.rect(5, 11, 1, 8, P);
+  p.px(4, 19, K); p.px(5, 19, K);
+  p.rect(20, 10, 3, 9, K);
+  p.rect(21, 11, 1, 8, B);
+  p.px(21, 19, K); p.px(22, 19, K);
+  // ноги
+  const lift = step ? 1 : 0;
+  p.rect(9, 20, 3, 5 - lift, K);
+  p.rect(10, 21, 1, 4 - lift, P);
+  p.rect(15, 20, 3, 4 + lift, K);
+  p.rect(16, 21, 1, 3 + lift, B);
+};
 const bruteArt = defineArt({
   id: "brute",
-  w: 20,
-  h: 20,
+  w: 26,
+  h: 26,
   palette: PAL_BRUTE,
   animations: {
-    idle: { fps: 2, frames: [BR_ROWS] },
-    walk: {
-      fps: 5,
-      frames: [
-        BR_ROWS,
-        BR_ROWS.slice(0, 14).concat(BR_LEGS_B),
-      ],
-    },
-    windup: { fps: 3, frames: [BR_ROWS] },
+    idle: { fps: 2, frames: [drawBrute({ step: 0 })] },
+    walk: { fps: 5, frames: [drawBrute({ step: 0 }), drawBrute({ step: 1 })] },
+    windup: { fps: 3, frames: [drawBrute({ step: 0, eye: "#d6f6ff" })] },
     attack: {
       fps: 8,
       frames: [
-        // яростные глаза + выпад
-        BR_ROWS.map((r) => r.replaceAll("e", "E")),
-        BR_ROWS.slice(0, 14).concat(BR_LEGS_B),
+        drawBrute({ step: 0, eye: "#d6f6ff" }),
+        drawBrute({ step: 1, eye: "#d6f6ff" }),
       ],
     },
   },
@@ -550,46 +554,58 @@ const crowbarArt = defineArt({
 });
 
 // ---------- Ледяной носорог (процедурный кадр, крупный) ----------
+// Сетка 40×36, единый пиксель (scale=1). Намёрз слоями льда.
 const drawRhino = ({ eye = "#ff4757", step = 0 } = {}) => (p) => {
   const K = "#141a26", P = "#c7d3e8", M = "#93a5c4", H = "#d6f6ff", C = "#6fd6ff";
-  // четыре ноги-колонны; step поднимает опорную пару (нога короче)
+  // четыре ноги-колонны; step поднимает опорную пару
   const leg = (x, lift) => {
-    p.rect(x, 14, 3, 6 - lift * 2, K);
-    p.rect(x + 1, 15, 1, 4 - lift * 2, P);
+    p.rect(x, 27, 5, 9 - lift * 2, K);
+    p.rect(x + 1, 28, 3, 7 - lift * 2, P);
+    p.rect(x + 1, 28, 1, 7 - lift * 2, M);
+    p.rect(x, 35 - lift * 2, 5, 1, K);
   };
   const s = step ? 1 : 0;
-  leg(7, s); leg(10, 1 - s); leg(14, s); leg(17, 1 - s);
+  leg(12, s); leg(18, 1 - s); leg(25, s); leg(31, 1 - s);
   // туловище-бочонок
-  p.rect(6, 5, 13, 11, K);
-  p.rect(7, 6, 11, 9, P);
-  p.rect(7, 12, 11, 3, M);
+  p.rect(10, 10, 27, 18, K);
+  p.rect(11, 11, 25, 16, P);
+  p.rect(11, 22, 25, 5, M);
+  p.rect(11, 11, 25, 2, H);
+  p.rect(11, 14, 25, 1, "#aebfdb");
   // ледяные кристаллы на спине
   const spike = (x, y) => {
-    p.px(x, y, K); p.px(x + 1, y, K); p.px(x + 2, y, K);
-    p.px(x, y - 1, C); p.px(x + 1, y - 1, C); p.px(x + 2, y - 1, C);
+    p.rect(x, y, 3, 1, K);
+    p.rect(x, y - 1, 3, 1, C);
     p.px(x + 1, y - 2, C);
+    p.px(x + 1, y - 3, H);
   };
-  spike(9, 5); spike(13, 4); spike(16, 5);
+  spike(16, 10); spike(22, 9); spike(28, 10);
   // голова
-  p.rect(1, 7, 7, 7, K);
-  p.rect(2, 8, 5, 5, P);
+  p.rect(2, 13, 11, 13, K);
+  p.rect(3, 14, 9, 11, P);
+  p.rect(3, 14, 9, 2, H);
+  p.rect(3, 21, 9, 4, M);
   // морда
-  p.rect(0, 11, 3, 3, K);
-  p.px(1, 12, M);
-  // рог изо льда
-  p.rect(0, 3, 3, 9, K);
-  p.rect(1, 4, 1, 7, H);
-  p.px(1, 3, H);
+  p.rect(0, 20, 4, 6, K);
+  p.rect(1, 21, 2, 4, M);
+  // рог изо льда (большой)
+  p.rect(0, 4, 6, 17, K);
+  p.rect(1, 5, 4, 15, H);
+  p.rect(2, 5, 2, 15, "#ffffff");
+  p.rect(1, 4, 4, 1, H);
+  p.px(2, 3, H); p.px(3, 3, H);
   // ухо
-  p.px(7, 6, K); p.px(8, 6, K); p.px(8, 7, P);
+  p.rect(12, 11, 3, 3, K);
+  p.px(13, 12, P);
   // глаз
-  p.px(5, 9, eye); p.px(6, 9, eye);
+  p.px(9, 17, eye); p.px(10, 17, eye);
+  p.px(9, 18, K);
 };
 
 const rhinoArt = defineArt({
   id: "rhino",
-  w: 20,
-  h: 20,
+  w: 40,
+  h: 36,
   palette: {},
   animations: {
     idle: { fps: 2, frames: [drawRhino()] },
@@ -606,120 +622,123 @@ const rhinoArt = defineArt({
 });
 
 // ---------- мышь-мутант (крошечная, пищит на 12 кГц) ----------
+// Сетка 10×8, единый пиксель (scale=1).
 const PAL_MOUSE = { k: "#1c2430", m: "#b9c3d6", p: "#f2a0b0", e: "#10151f" };
-const M_A = [
-  "............",
-  "..kk....kk..",
-  ".kppk..kppk.",
-  ".kpmk..kmpk.",
-  "..kmmkkmmk..",
-  ".kmmmmmmmmk.",
-  ".kmemmmmemk.",
-  ".kmmmmmpmmk.",
-  "..kmmmmmmk.k",
-  "...kkkkkk.kk",
-  ".........kpk",
-];
-const M_B = [
-  "............",
-  "..kk....kk..",
-  ".kppk..kppk.",
-  ".kpmk..kmpk.",
-  "..kmmkkmmk..",
-  ".kmmmmmmmmk.",
-  ".kmemmmmemk.",
-  ".kmmmmmpmmk.",
-  "..kmmmmmmkk.",
-  "...kkkkkkk..",
-  "........kpkk",
-];
+const drawMouse = ({ step = 0 } = {}) => (p) => {
+  const K = "#1c2430", M = "#b9c3d6", P = "#f2a0b0", E = "#10151f";
+  // уши
+  p.rect(1, 0, 2, 2, K);
+  p.rect(6, 0, 2, 2, K);
+  p.px(1, 0, P);
+  p.px(7, 0, P);
+  // голова + тело
+  p.rect(1, 2, 7, 4, K);
+  p.rect(2, 2, 5, 3, M);
+  p.rect(2, 2, 5, 1, "#d4dcea");
+  // глаза
+  p.px(3, 3, E);
+  p.px(5, 3, E);
+  // розовый нос
+  p.px(4, 4, P);
+  // лапки (семенит)
+  if (step) {
+    p.px(2, 6, K);
+    p.px(6, 6, K);
+  } else {
+    p.px(3, 6, K);
+    p.px(5, 6, K);
+  }
+  // хвост
+  p.px(8, 3, K);
+  p.px(9, 2, P);
+};
 const mouseArt = defineArt({
   id: "mouse",
-  w: 12,
-  h: 11,
+  w: 10,
+  h: 8,
   palette: PAL_MOUSE,
   animations: {
-    idle: { fps: 3, frames: [M_A, M_B] },
-    walk: { fps: 14, frames: [M_A, M_B] },
-    windup: { fps: 6, frames: [M_B] },
-    attack: { fps: 10, frames: [M_B, M_A] },
+    idle: { fps: 3, frames: [drawMouse({ step: 0 }), drawMouse({ step: 1 })] },
+    walk: { fps: 14, frames: [drawMouse({ step: 0 }), drawMouse({ step: 1 })] },
+    windup: { fps: 6, frames: [drawMouse({ step: 1 })] },
+    attack: { fps: 10, frames: [drawMouse({ step: 1 }), drawMouse({ step: 0 })] },
   },
 });
 
-// ---------- Ледяной голем (в 10 раз больше героя, рычит на 60 Гц) ----------
+// ---------- Ледяной голем (исполин, рычит на 60 Гц) ----------
+// Сетка 64×64, единый пиксель (scale=1) — втрое выше героя.
 const drawGolem = ({ eye = "#6fd6ff", raise = 0, step = 0 } = {}) => (p) => {
   const K = "#0d1220", D = "#2e3f5c", B = "#4a6288", M = "#6f8cb4",
-    H = "#a9c4e4", C = "#6fd6ff";
-
-  // ===== руки (за туловищем) =====
-  const aTop = raise ? 8 : 15;
-  const aLen = 17;
-  p.rect(4, aTop, 6, aLen, K);
-  p.rect(5, aTop + 1, 4, aLen - 2, B);
-  p.rect(5, aTop + 1, 2, aLen - 2, M);
-  p.rect(3, aTop + aLen - 2, 8, 5, K);
-  p.rect(4, aTop + aLen - 1, 6, 3, D);
-  p.px(4, aTop + aLen - 1, C);
-  p.rect(30, aTop + 1, 6, aLen, K);
-  p.rect(31, aTop + 2, 4, aLen - 2, D);
-  p.rect(29, aTop + aLen - 1, 8, 5, K);
-  p.rect(30, aTop + aLen, 6, 3, D);
-
+    H = "#a9c4e4", C = "#6fd6ff", W = "#dfeaf7";
+  // ===== руки (за туловищем); raise — подняты для замаха =====
+  const aTop = raise ? 12 : 24;
+  p.rect(6, aTop, 9, 26, K);
+  p.rect(7, aTop + 1, 7, 24, B);
+  p.rect(7, aTop + 1, 3, 24, M);
+  p.rect(5, aTop + 24, 12, 7, K);
+  p.rect(6, aTop + 25, 10, 5, D);
+  p.px(6, aTop + 25, C);
+  p.rect(49, aTop + 1, 9, 26, K);
+  p.rect(50, aTop + 2, 7, 24, D);
+  p.rect(47, aTop + 25, 12, 7, K);
+  p.rect(48, aTop + 26, 10, 5, D);
   // ===== ноги =====
-  p.rect(10, 28, 8, 10, K);
-  p.rect(11, 29, 6, 9, B);
-  p.rect(11, 29, 2, 9, M);
-  p.rect(22, 28, 8, 10, K);
-  p.rect(23, 29, 6, 9, D);
-  p.rect(8, 37, 11, 2, K);
-  p.rect(21, 37, 11, 2, K);
-  if (step) p.px(8, 36, H);
-  else p.px(31, 36, H);
-
+  const lift = step ? 2 : 0;
+  p.rect(17, 46, 12, 16 - lift, K);
+  p.rect(18, 47, 10, 14 - lift, B);
+  p.rect(18, 47, 4, 14 - lift, M);
+  p.rect(35, 46, 12, 14 + lift, K);
+  p.rect(36, 47, 10, 12 + lift, D);
+  p.rect(14, 61 - lift, 17, 3, K);
+  p.rect(33, 59 + lift, 17, 3, K);
   // ===== туловище =====
-  p.rect(8, 12, 24, 18, K);
-  p.rect(9, 13, 22, 16, B);
-  p.rect(9, 13, 6, 16, M);
-  p.rect(9, 13, 22, 4, H);
-  p.rect(27, 13, 4, 16, D);
-  // ледяное ядро в груди
-  p.rect(18, 17, 2, 7, C);
-  p.rect(16, 19, 6, 2, C);
-  p.px(19, 18, "#dfeaf7");
-  p.rect(12, 25, 16, 1, D);
-  p.rect(12, 27, 16, 1, D);
-
+  p.rect(13, 20, 38, 27, K);
+  p.rect(14, 21, 36, 25, B);
+  p.rect(14, 21, 10, 25, M);
+  p.rect(14, 21, 36, 5, H);
+  p.rect(42, 21, 8, 25, D);
+  // ледяные прожилки-трещины
+  p.rect(20, 30, 1, 8, D);
+  p.rect(44, 28, 1, 10, D);
+  p.px(21, 34, H); p.px(43, 32, H);
+  // светящееся ядро в груди
+  p.rect(29, 27, 3, 10, C);
+  p.rect(26, 30, 9, 3, C);
+  p.px(30, 28, W); p.px(31, 31, W);
+  p.rect(22, 40, 20, 1, D);
+  p.rect(22, 43, 20, 1, D);
   // ===== плечи =====
-  p.rect(5, 11, 30, 6, K);
-  p.rect(6, 12, 28, 4, M);
-  p.rect(6, 12, 28, 2, H);
-  p.rect(5, 7, 5, 5, K);
-  p.rect(6, 8, 3, 3, C);
-  p.px(7, 7, "#dfeaf7");
-  p.rect(30, 7, 5, 5, K);
-  p.rect(31, 8, 3, 3, C);
-  p.px(32, 7, "#dfeaf7");
-
+  p.rect(9, 18, 46, 8, K);
+  p.rect(10, 19, 44, 6, M);
+  p.rect(10, 19, 44, 2, H);
+  // ледяные кристаллы на плечах
+  p.rect(8, 12, 7, 7, K);
+  p.rect(9, 13, 5, 5, C);
+  p.px(11, 12, W);
+  p.rect(49, 12, 7, 7, K);
+  p.rect(50, 13, 5, 5, C);
+  p.px(52, 12, W);
   // ===== голова =====
-  p.rect(14, 2, 12, 10, K);
-  p.rect(15, 3, 10, 8, B);
-  p.rect(15, 3, 3, 8, M);
-  p.rect(15, 3, 10, 2, H);
-  p.rect(23, 3, 2, 8, D);
-  p.rect(15, 5, 10, 1, D);
-  p.px(16, 7, eye); p.px(17, 7, eye);
-  p.px(21, 7, eye); p.px(22, 7, eye);
-  p.rect(16, 10, 8, 2, D);
+  p.rect(23, 3, 18, 15, K);
+  p.rect(24, 4, 16, 13, B);
+  p.rect(24, 4, 5, 13, M);
+  p.rect(24, 4, 16, 3, H);
+  p.rect(36, 4, 4, 13, D);
+  p.rect(24, 8, 16, 1, D);
+  // глаза
+  p.px(27, 11, eye); p.px(28, 11, eye);
+  p.px(34, 11, eye); p.px(35, 11, eye);
+  p.rect(27, 15, 10, 2, D);
   // ледяная корона
-  p.rect(18, 0, 3, 3, K);
-  p.px(18, 1, C); p.px(19, 1, "#dfeaf7"); p.px(20, 1, C);
-  p.px(19, 0, C);
+  p.rect(29, 0, 6, 4, K);
+  p.px(29, 1, C); p.px(31, 1, W); p.px(33, 1, C);
+  p.px(30, 0, C); p.px(32, 0, C);
 };
 
 const golemArt = defineArt({
   id: "golem",
-  w: 40,
-  h: 40,
+  w: 64,
+  h: 64,
   palette: {},
   animations: {
     idle: { fps: 2, frames: [drawGolem()] },
