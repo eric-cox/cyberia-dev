@@ -22,8 +22,7 @@ const PROFILES = {
       chillBelow: 25, // порог обморожения
       regen: 2, // жизнь/сек при heat > regenAbove
       regenAbove: 55,
-      orbHeat: 6, // тепло с орба
-      orbHp: 5, // жизнь с орба
+      orbHp: 5, // жизнь с орба (тепло убийства НЕ дают)
     },
     enemies: {
       // «полярный множитель» силы: центр → край

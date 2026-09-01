@@ -51,7 +51,7 @@
 | `hurt` | `{ x, y, dmg }` | Renderer (число, брызги), Game (звук, тряска, мигание экрана) |
 | `cold-tick` | `{ x, y, amount, critical }` | Renderer (число, лёд), Game (треск) |
 | `pickup` | `{ x, y, item, isNew, equipped, color, statText }` | Renderer (вспышка), Game (звук, тост, снапшот) |
-| `orb` | `{ x, y, heat, hp }` | Renderer (числа, тепло), Game (звук) |
+| `orb` | `{ x, y, hp }` | Renderer (число, брызги), Game (звук) |
 | `growl` | `{ x, y, voice, name, soft }` | Game (голос врага; низкие freq → тряска) |
 | `heartbeat` | — | Game (звук) |
 | `death` | `{ cause, time, kills }` | Game (звук, статистика, экран смерти) |

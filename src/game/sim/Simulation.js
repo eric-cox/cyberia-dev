@@ -199,18 +199,14 @@ export class Simulation {
       }
   }
 
-  // ---------- орбы тепла ----------
+  // ---------- орбы жизни ----------
+  // Убийство врага НЕ восстанавливает тепло — только жизнь.
+  // Тепло добывается артефактами-одеждой, а не бойней.
   updateOrbs(dt, p) {
-    const heatCfg = this.diff.heat;
+    const hpGain = this.diff.heat.orbHp;
     for (const o of this.orbs.update(dt, p)) {
-      this.heat = Math.min(this.diff.player.maxHeat, this.heat + heatCfg.orbHeat);
-      this.hp = Math.min(this.diff.player.maxHp, this.hp + heatCfg.orbHp);
-      this.bus.emit("orb", {
-        x: p.x,
-        y: p.y,
-        heat: heatCfg.orbHeat,
-        hp: heatCfg.orbHp,
-      });
+      this.hp = Math.min(this.diff.player.maxHp, this.hp + hpGain);
+      this.bus.emit("orb", { x: p.x, y: p.y, hp: hpGain });
     }
   }
 

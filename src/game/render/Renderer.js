@@ -96,11 +96,10 @@ export class Renderer {
       })
     );
     bus.on("orb", (e) => {
-      Tx.add(e.x, e.y - 16, `+${e.heat} ТЕПЛА`, "#ffb347");
-      Tx.add(e.x, e.y - 26, `+${e.hp} ЖИЗНИ`, "#7dff8a");
+      Tx.add(e.x, e.y - 18, `+${e.hp} ЖИЗНИ`, "#7dff8a");
       P.burst(e.x, e.y - 6, {
         n: 6,
-        colors: ["#ffb347", "#ff8c42", "#fff1c9"],
+        colors: ["#7dff8a", "#3ecf5f", "#d8ffe0"],
         speed: 50,
         life: 0.4,
       });

@@ -718,7 +718,7 @@ const golemArt = defineArt({
   },
 });
 
-// ---------- тепловой orb (процедурные кадры) ----------
+// ---------- орб жизни (процедурные кадры) ----------
 const orbArt = defineArt({
   id: "orb",
   w: 8,
@@ -729,17 +729,17 @@ const orbArt = defineArt({
       fps: 6,
       frames: [
         (p) => {
-          p.disc(3, 3, 2, "#ffb347");
-          p.px(3, 2, "#fff1c9");
-          p.px(1, 1, "#ff8c42");
-          p.px(5, 5, "#ff8c42");
+          p.disc(3, 3, 2, "#3ecf5f");
+          p.px(3, 2, "#d8ffe0");
+          p.px(1, 1, "#7dff8a");
+          p.px(5, 5, "#7dff8a");
         },
         (p) => {
-          p.disc(3, 3, 2, "#ffb347");
-          p.px(2, 3, "#fff1c9");
-          p.px(5, 1, "#ffd9ac");
-          p.px(4, 5, "#ff8c42");
-          p.px(0, 4, "#ff8c42");
+          p.disc(3, 3, 2, "#3ecf5f");
+          p.px(2, 3, "#d8ffe0");
+          p.px(5, 1, "#a8ffb0");
+          p.px(4, 5, "#7dff8a");
+          p.px(0, 4, "#7dff8a");
         },
       ],
     },
