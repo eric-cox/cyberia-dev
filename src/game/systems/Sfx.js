@@ -59,6 +59,23 @@ export class Sfx {
     this.windGain.gain.setTargetAtTime(i * 0.22, t, 0.4);
     this.windFilter.frequency.setTargetAtTime(200 + i * 420, t, 0.5);
   }
+  // серо-чёрная пурга: тревожный низкий гул (вход/выход из фазы)
+  darkWind(on) {
+    if (!this.ctx || this.muted) return;
+    const t0 = this.ctx.currentTime;
+    const o = this.ctx.createOscillator();
+    const g = this.ctx.createGain();
+    o.type = "sine";
+    o.frequency.setValueAtTime(on ? 90 : 130, t0);
+    o.frequency.exponentialRampToValueAtTime(on ? 40 : 70, t0 + 1.2);
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(on ? 0.12 : 0.06, t0 + 0.15);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 1.3);
+    o.connect(g);
+    g.connect(this.master);
+    o.start(t0);
+    o.stop(t0 + 1.4);
+  }
 
   tone({ f = 440, f2 = null, t = 0.12, type = "square", v = 0.18, delay = 0 }) {
     if (!this.ctx || this.muted) return;

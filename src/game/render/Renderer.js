@@ -21,7 +21,7 @@ import {
 } from "./painters.js";
 
 export class Renderer {
-  constructor(canvas, bus) {
+  constructor(canvas, bus, options = {}) {
     this.cv = canvas;
     this.ctx = canvas.getContext("2d");
     this.dpr = 1;
@@ -29,7 +29,7 @@ export class Renderer {
     this.viewH = 600;
     this.time = 0;
     this.fx = new Fx();
-    this.weather = new Weather();
+    this.weather = new Weather(bus, options.weather);
     this.terrainCache = new Map(); // seed → canvas
     this.minimapCanvas = null;
     this.minimapCtx = null;

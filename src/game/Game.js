@@ -43,7 +43,7 @@ export default class Game {
     this.sim = new Simulation(this.bus, this.store, this.equipment, this.diff);
 
     artSystem.registerAll(ART_MODULES);
-    this.renderer = new Renderer(canvas, this.bus);
+    this.renderer = new Renderer(canvas, this.bus, { weather: this.diff.weather });
 
     this.menuT = 0;
     this.hitstop = 0;
@@ -102,6 +102,14 @@ export default class Game {
       if (e.voice && e.voice.freq < 100 && !e.soft) this.camera.addTrauma(0.3);
     });
     b.on("heartbeat", () => this.sfx.heartbeat());
+    b.on("weather", ({ dark }) => {
+      // серо-чёрная пурга: тревожный гул и предупреждение
+      this.sfx.darkWind(dark);
+      this.toast({
+        kind: "sys",
+        text: dark ? "ПУРГА ЧЕРНЕЕТ…" : "СНЕГ СНОВА БЕЛЫЙ",
+      });
+    });
     b.on("pickup", (e) => {
       this.sfx.pickup(e.item.tier);
       const { item, isNew, equipped, statText } = e;
