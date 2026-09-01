@@ -32,9 +32,9 @@ export class Renderer {
     this.fx = new Fx();
     this.weather = new Weather();
     this.terrainCache = new Map(); // seed → canvas
-    this.mm = null;
-    this.mctx = null;
-    this.cam = null;
+    this.minimapCanvas = null;
+    this.minimapCtx = null;
+    this.camera = null; // сюда Game передаёт камеру каждого кадра
 
     this.wireEvents(bus);
     this.resize();
@@ -42,22 +42,22 @@ export class Renderer {
 
   // события симуляции → визуальный отклик
   wireEvents(bus) {
-    const P = this.fx.particles;
-    const Tx = this.fx.texts;
+    const particles = this.fx.particles;
+    const texts = this.fx.texts;
 
-    bus.on("attack", (e) => P.slashArc(e.x, e.y, e.angle, e.range));
+    bus.on("attack", (e) => particles.slashArc(e.x, e.y, e.angle, e.range));
     bus.on("hit", (e) => {
-      P.burst(e.x, e.y - 6, {
+      particles.burst(e.x, e.y - 6, {
         n: 7,
         colors: ["#c23b3b", "#8a2a2a", "#ff6b7a"],
         speed: 70,
         life: 0.45,
       });
-      Tx.add(e.x, e.y - 16, "-" + e.dmg, "#ffd9ac");
+      texts.add(e.x, e.y - 16, "-" + e.dmg, "#ffd9ac");
     });
     bus.on("kill", (e) => {
       const isGolem = e.type === "golem";
-      P.burst(e.x, e.y - (isGolem ? 40 : 6), {
+      particles.burst(e.x, e.y - (isGolem ? 40 : 6), {
         n: isGolem ? 46 : 16,
         colors: isGolem
           ? ["#6fd6ff", "#a9e8ff", "#dfeaf7", "#4a6288", "#e8f2ff"]
@@ -66,21 +66,21 @@ export class Renderer {
         life: isGolem ? 0.9 : 0.6,
         size: isGolem ? 2 : 1,
       });
-      Tx.add(e.x, e.y - (isGolem ? 90 : 24), e.name.toUpperCase() + " ПАЛ", isGolem ? "#6fd6ff" : "#9fd8ff");
+      texts.add(e.x, e.y - (isGolem ? 90 : 24), e.name.toUpperCase() + " ПАЛ", isGolem ? "#6fd6ff" : "#9fd8ff");
     });
     bus.on("hurt", (e) => {
-      P.burst(e.x, e.y - 6, {
+      particles.burst(e.x, e.y - 6, {
         n: 8,
         colors: ["#ff4757", "#c23b3b", "#e8f2ff"],
         speed: 80,
         life: 0.4,
       });
-      Tx.add(e.x, e.y - 18, "-" + e.dmg, "#ff4757");
+      texts.add(e.x, e.y - 18, "-" + e.dmg, "#ff4757");
     });
     bus.on("cold-tick", (e) => {
-      Tx.add(e.x, e.y - 18, "-" + e.amount, e.critical ? "#ff4757" : "#ff8a94");
+      texts.add(e.x, e.y - 18, "-" + e.amount, e.critical ? "#ff4757" : "#ff8a94");
       if (e.critical)
-        P.burst(e.x, e.y - 8, {
+        particles.burst(e.x, e.y - 8, {
           n: 4,
           colors: ["#7fd7ff", "#bfe3ff", "#e8f2ff"],
           speed: 26,
@@ -88,7 +88,7 @@ export class Renderer {
         });
     });
     bus.on("pickup", (e) =>
-      P.burst(e.x, e.y - 6, {
+      particles.burst(e.x, e.y - 6, {
         n: 14,
         colors: [e.color, "#e8f2ff", "#ffffff"],
         speed: 80,
@@ -96,8 +96,8 @@ export class Renderer {
       })
     );
     bus.on("orb", (e) => {
-      Tx.add(e.x, e.y - 18, `+${e.hp} ЖИЗНИ`, "#7dff8a");
-      P.burst(e.x, e.y - 6, {
+      texts.add(e.x, e.y - 18, `+${e.hp} ЖИЗНИ`, "#7dff8a");
+      particles.burst(e.x, e.y - 6, {
         n: 6,
         colors: ["#7dff8a", "#3ecf5f", "#d8ffe0"],
         speed: 50,
@@ -107,8 +107,8 @@ export class Renderer {
   }
 
   attachMinimap(el) {
-    this.mm = el;
-    this.mctx = el ? el.getContext("2d") : null;
+    this.minimapCanvas = el;
+    this.minimapCtx = el ? el.getContext("2d") : null;
   }
 
   resize() {
@@ -142,7 +142,7 @@ export class Renderer {
   render(sim, camera, dt) {
     const ctx = this.ctx;
     this.time += dt;
-    this.cam = camera;
+    this.camera = camera; // запоминаем для рамки обзора на миникарте
 
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     ctx.fillStyle = "#05080f";
@@ -191,55 +191,56 @@ export class Renderer {
   }
 
   renderMinimap(sim) {
-    if (!this.mctx || !sim.map || sim.state === "menu") return;
-    const m = this.mctx;
-    const S = this.mm.width;
-    const k = S / sim.map.size;
-    m.imageSmoothingEnabled = false;
-    m.clearRect(0, 0, S, S);
-    m.drawImage(this.minimapBase(sim.map), 0, 0, S, S);
+    if (!this.minimapCtx || !sim.map || sim.state === "menu") return;
+    const ctx = this.minimapCtx;
+    const size = this.minimapCanvas.width;
+    // пикселей миникарты на один тайл мира
+    const scale = size / sim.map.size;
+    ctx.imageSmoothingEnabled = false;
+    ctx.clearRect(0, 0, size, size);
+    ctx.drawImage(this.minimapBase(sim.map), 0, 0, size, size);
 
     // артефакты (мигают)
     const blink = Math.floor(performance.now() / 300) % 2 === 0;
     for (const pk of sim.pickups) {
       if (!blink) continue;
-      m.fillStyle = "#6fd6ff";
-      m.fillRect((pk.x / TILE) * k - 1, (pk.y / TILE) * k - 1, 3, 3);
+      ctx.fillStyle = "#6fd6ff";
+      ctx.fillRect((pk.x / TILE) * scale - 1, (pk.y / TILE) * scale - 1, 3, 3);
     }
     // мутанты (гиганты — крупные метки)
     for (const e of sim.enemies) {
       if (e.type === "golem") {
-        m.fillStyle = blink ? "#6fd6ff" : "#a9e8ff";
-        m.fillRect((e.x / TILE) * k - 2, (e.y / TILE) * k - 2, 6, 6);
+        ctx.fillStyle = blink ? "#6fd6ff" : "#a9e8ff";
+        ctx.fillRect((e.x / TILE) * scale - 2, (e.y / TILE) * scale - 2, 6, 6);
       } else if (e.type === "rhino") {
-        m.fillStyle = "#d6f6ff";
-        m.fillRect((e.x / TILE) * k - 1, (e.y / TILE) * k - 1, 4, 4);
+        ctx.fillStyle = "#d6f6ff";
+        ctx.fillRect((e.x / TILE) * scale - 1, (e.y / TILE) * scale - 1, 4, 4);
       } else {
-        m.fillStyle = e.type === "mouse" ? "#f2a0b0" : "#ff4757";
-        m.fillRect((e.x / TILE) * k, (e.y / TILE) * k, 2, 2);
+        ctx.fillStyle = e.type === "mouse" ? "#f2a0b0" : "#ff4757";
+        ctx.fillRect((e.x / TILE) * scale, (e.y / TILE) * scale, 2, 2);
       }
     }
     // игрок
     if (sim.player) {
-      m.fillStyle = "#ffb347";
-      m.fillRect(
-        (sim.player.x / TILE) * k - 1,
-        (sim.player.y / TILE) * k - 1,
+      ctx.fillStyle = "#ffb347";
+      ctx.fillRect(
+        (sim.player.x / TILE) * scale - 1,
+        (sim.player.y / TILE) * scale - 1,
         3,
         3
       );
     }
-    // рамка обзора
-    if (this.cam) {
-      const vw = this.viewW / ZOOM / TILE;
-      const vh = this.viewH / ZOOM / TILE;
-      m.strokeStyle = "rgba(232,242,255,0.5)";
-      m.lineWidth = 1;
-      m.strokeRect(
-        (this.cam.x / TILE - vw / 2) * k,
-        (this.cam.y / TILE - vh / 2) * k,
-        vw * k,
-        vh * k
+    // рамка видимой области
+    if (this.camera) {
+      const viewTilesW = this.viewW / ZOOM / TILE;
+      const viewTilesH = this.viewH / ZOOM / TILE;
+      ctx.strokeStyle = "rgba(232,242,255,0.5)";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(
+        (this.camera.x / TILE - viewTilesW / 2) * scale,
+        (this.camera.y / TILE - viewTilesH / 2) * scale,
+        viewTilesW * scale,
+        viewTilesH * scale
       );
     }
   }

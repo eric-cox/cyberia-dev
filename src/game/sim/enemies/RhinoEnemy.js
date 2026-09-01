@@ -35,14 +35,14 @@ export class RhinoEnemy extends Enemy {
   strikeReach() {
     return 24;
   }
-  // таран: повторные попадания, пока несётся
+  // таран: пока несётся, бьёт повторно (раз в ramCooldown)
   duringStrike(dt, sim) {
-    this.ramCd -= dt;
+    this.ramCooldown -= dt;
     const p = sim.player;
     const d = Math.hypot(p.x - this.x, p.y - this.y);
-    if (this.ramCd <= 0 && d < this.def.range + p.r + 6) {
+    if (this.ramCooldown <= 0 && d < this.def.range + p.r + 6) {
       sim.damagePlayer(this.dmg, this);
-      this.ramCd = 0.45;
+      this.ramCooldown = 0.45;
     }
   }
 }

@@ -168,7 +168,7 @@ export function generateWorld(seed) {
         const ty = Math.round(cy + y);
         if (tx < 0 || ty < 0 || tx >= MAP_TILES || ty >= MAP_TILES) continue;
         const t = map.get(tx, ty);
-        if (t < T.SNOW || t > T.SNOW_VDEEP) continue;
+        if (t < T.SNOW || t > T.SNOW_VERY_DEEP) continue;
         map.set(tx, ty, dd < (r * 0.55) ** 2 ? T.ICE_SMOOTH : T.ICE);
       }
   }
@@ -180,7 +180,7 @@ export function generateWorld(seed) {
     const ty = Math.floor(rng() * MAP_TILES);
     if (distC(tx, ty) < 8) continue;
     const t = map.get(tx, ty);
-    if (t >= T.SNOW && t <= T.SNOW_VDEEP) {
+    if (t >= T.SNOW && t <= T.SNOW_VERY_DEEP) {
       map.set(tx, ty, T.TREE);
       map.decor.push({
         kind: "tree",

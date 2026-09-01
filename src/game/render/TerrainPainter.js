@@ -31,7 +31,7 @@ export function paintTerrain(map) {
         paintIce(ctx, map, tx, ty, px, py, t === T.ICE_SMOOTH, rng);
       } else {
         // снег (под скалами/деревьями тоже)
-        const depth = t <= T.SNOW_VDEEP ? t : 1;
+        const depth = t <= T.SNOW_VERY_DEEP ? t : 1;
         ctx.fillStyle = SNOW_BASE[depth];
         ctx.fillRect(px, py, TILE, TILE);
         const n = 5 + Math.floor(rng() * 5);
@@ -160,7 +160,7 @@ export function paintMinimapBase(map) {
   const colors = {
     [T.SNOW]: "#c9d8ec",
     [T.SNOW_DEEP]: "#b0c3de",
-    [T.SNOW_VDEEP]: "#93aad0",
+    [T.SNOW_VERY_DEEP]: "#93aad0",
     [T.ROCK]: "#3d4d6b",
     [T.ICE]: "#7fb2d9",
     [T.ICE_SMOOTH]: "#a9d7f2",

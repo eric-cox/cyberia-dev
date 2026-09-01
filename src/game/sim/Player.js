@@ -13,8 +13,8 @@ export class Player extends Entity {
     this.face = Math.PI / 2; // направление взгляда/удара
     this.moving = false;
     this.animT = 0;
-    this.attackT = 0; // перезарядка удара
-    this.attackAnimT = 0; // длительность анимации замаха
+    this.attackCooldown = 0; // перезарядка удара
+    this.attackAnimTime = 0; // сколько ещё идёт анимация замаха
     this.flash = 0; // белая вспышка при уроне
     this.lunge = 0; // рывок при ударе
   }

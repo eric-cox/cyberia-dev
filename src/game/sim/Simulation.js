@@ -88,14 +88,14 @@ export class Simulation {
     // --- движение: скорость с инерцией ячейки (см. Movement.js) ---
     const cell = this.map.cellAt(p.x, p.y);
     const spd = p.speed * cell.speed;
-    steer(p, cmd.mx * spd, cmd.my * spd, this.map, dt);
+    steer(p, cmd.moveX * spd, cmd.moveY * spd, this.map, dt);
     const blocked = this.moveEntity(p, p.vx * dt, p.vy * dt);
     if (blocked.x) p.vx *= -0.25; // лёгкий отскок от препятствия
     if (blocked.y) p.vy *= -0.25;
     const speedNow = Math.hypot(p.vx, p.vy);
     p.moving = speedNow > 14;
-    if (cmd.mx !== 0 || cmd.my !== 0) p.face = Math.atan2(cmd.my, cmd.mx);
-    else if (p.moving) p.face = Math.atan2(p.vy, p.vx); // занос на льду
+    if (cmd.moveX !== 0 || cmd.moveY !== 0) p.face = Math.atan2(cmd.moveY, cmd.moveX);
+    else if (p.moving) p.face = Math.atan2(p.vy, p.vx); // доворачивает по заносу на льду
     if (p.moving) p.animT += dt;
 
     // --- атака: SPACE — по направлению движения,
@@ -104,8 +104,8 @@ export class Simulation {
     if (cmd.attackAim && cmd.aimAngle != null) this.doAttack(cmd.aimAngle);
 
     // таймеры игрока
-    p.attackT = Math.max(0, p.attackT - dt);
-    p.attackAnimT = Math.max(0, p.attackAnimT - dt);
+    p.attackCooldown = Math.max(0, p.attackCooldown - dt);
+    p.attackAnimTime = Math.max(0, p.attackAnimTime - dt);
     p.lunge = Math.max(0, p.lunge - dt * 6);
     p.flash = Math.max(0, p.flash - dt);
 
@@ -243,29 +243,35 @@ export class Simulation {
   }
 
   // ---------- бой ----------
+  // Удар веером: задевает врагов в радиусе оружия и в секторе
+  // ±1.25 рад (~±72°) вокруг направления удара.
   doAttack(angle) {
     const p = this.player;
-    if (p.attackT > 0) return;
-    const w = this.equipment.weapon();
-    p.attackT = 1 / w.rate;
-    p.attackAnimT = 0.16;
+    if (p.attackCooldown > 0) return; // идёт перезарядка
+    const weapon = this.equipment.weapon();
+    p.attackCooldown = 1 / weapon.rate;
+    p.attackAnimTime = 0.16;
     p.face = angle;
     p.lunge = 1;
 
     const ox = p.x + Math.cos(angle) * 7;
     const oy = p.y - 3 + Math.sin(angle) * 7;
-    this.bus.emit("attack", { x: ox, y: oy, angle, range: w.range });
+    this.bus.emit("attack", { x: ox, y: oy, angle, range: weapon.range });
 
     for (const e of this.enemies) {
       if (e.dead) continue;
       const dx = e.x - p.x;
       const dy = e.y - p.y;
-      const d = Math.hypot(dx, dy);
-      if (d > w.range + e.r) continue;
-      const ea = Math.atan2(dy, dx) - angle;
-      const diff = Math.atan2(Math.sin(ea), Math.cos(ea));
-      if (Math.abs(diff) > 1.25) continue;
-      const dmg = Math.max(1, Math.round(w.dmg * (0.9 + Math.random() * 0.25)));
+      const dist = Math.hypot(dx, dy);
+      if (dist > weapon.range + e.r) continue;
+      // Разность углов, нормализованная в [-π, π]:
+      // atan2(sin, cos) «схлопывает» переход через ±180°,
+      // иначе угол 359° и 1° считались бы далёкими.
+      const angleToEnemy = Math.atan2(dy, dx) - angle;
+      const angleDiff = Math.atan2(Math.sin(angleToEnemy), Math.cos(angleToEnemy));
+      if (Math.abs(angleDiff) > 1.25) continue;
+      // Разброс урона ±~12%, минимум 1
+      const dmg = Math.max(1, Math.round(weapon.dmg * (0.9 + Math.random() * 0.25)));
       this.hitEnemy(e, dmg, angle);
     }
   }
@@ -273,8 +279,8 @@ export class Simulation {
   hitEnemy(e, dmg, angle) {
     e.hp -= dmg;
     e.flash = 0.13;
-    e.kx = Math.cos(angle) * 150;
-    e.ky = Math.sin(angle) * 150;
+    e.knockX = Math.cos(angle) * 150; // отдача в сторону удара
+    e.knockY = Math.sin(angle) * 150;
     if (e.state === "wander") e.state = "chase";
     this.bus.emit("hit", { x: e.x, y: e.y, dmg, voice: e.def.voice, name: e.def.name });
     if (e.hp <= 0) this.killEnemy(e);

@@ -70,13 +70,14 @@ export class Input {
     return l > 0 ? { x: x / l, y: y / l } : { x: 0, y: 0 };
   }
 
-  // Команда кадра. attackAim несёт курсор; угол доворачивает
-  // Game (ему известна камера) и кладёт в cmd.aimAngle.
+  // Команда кадра — плоский объект намерений игрока.
+  // attackAim несёт курсор; мировой угол доворачивает Game
+  // (ему известна камера) и кладёт в cmd.aimAngle.
   readCommand() {
     const axis = this.axis();
     return {
-      mx: axis.x,
-      my: axis.y,
+      moveX: axis.x,
+      moveY: axis.y,
       attackMelee: this.wasPressed("Space", "KeyJ"),
       attackAim: this.clicked,
       aimAngle: null,

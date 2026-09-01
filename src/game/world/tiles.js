@@ -16,7 +16,7 @@
 export const T = {
   SNOW: 0, // обычный снег
   SNOW_DEEP: 1, // глубокий снег
-  SNOW_VDEEP: 2, // очень глубокий снег
+  SNOW_VERY_DEEP: 2, // очень глубокий снег
   ROCK: 3, // скала
   ICE: 4, // обычный лёд
   ICE_SMOOTH: 5, // гладкий лёд

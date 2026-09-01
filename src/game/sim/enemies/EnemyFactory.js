@@ -13,8 +13,8 @@
 //  Точное число разыгрывается каждый забег; дробная часть —
 //  вероятность (0.3 → один голем с шансом 30%).
 //
-//  «Полярный множитель» mul растёт от центра к краю: звери
-//  у окраин крупнее, живучее и больнее (на мышей не действует).
+//  edgeScaleRange («полярный множитель») растёт от центра к краю:
+//  звери у окраин крупнее, живучее и больнее (на мышей не действует).
 // ============================================================
 import { clamp } from "../../core/Utils.js";
 import { makeEnemy } from "./registry.js";
@@ -30,26 +30,30 @@ function rollCount([min, max], rng) {
 
 export function populateEnemies(map, rng, diff) {
   const cfg = diff.enemies;
-  const { zones, types, edgeMul } = cfg;
-  const spanA = zones.center[0]; // внутренняя граница центра
-  const spanB = zones.edge[1]; // внешняя граница края
+  const { zones, types, edgeScaleRange } = cfg;
+  const innerRadius = zones.center[0]; // внутренняя граница центра
+  const outerRadius = zones.edge[1]; // внешняя граница края
   const enemies = [];
 
-  // Стайный рассев n особей типа в кольце [ringA..ringB]
-  const pack = (type, n, ring) => {
-    for (let i = 0; i < n; i++) {
+  // Рассев n особей одного типа в кольце [ring[0]..ring[1]]
+  const spawnPack = (type, count, ring) => {
+    for (let i = 0; i < count; i++) {
       const r = ring[0] + rng() * (ring[1] - ring[0]);
       const pos = map.freeSpot(r, Math.min(r + 3, 56), rng);
-      const k = clamp((r - spanA) / (spanB - spanA), 0, 1);
-      const mul = edgeMul[0] + (edgeMul[1] - edgeMul[0]) * k;
-      // мыши везде одинаково крошечные — без полярного множителя
-      enemies.push(makeEnemy(type, pos.x, pos.y, rng, type === "mouse" ? 1 : mul));
+      // Насколько эта точка «полярная»: 0 у центра, 1 у края
+      const polar = clamp((r - innerRadius) / (outerRadius - innerRadius), 0, 1);
+      const edgeScale =
+        edgeScaleRange[0] + (edgeScaleRange[1] - edgeScaleRange[0]) * polar;
+      // мыши везде одинаково крошечные — множитель не применяется
+      enemies.push(
+        makeEnemy(type, pos.x, pos.y, rng, type === "mouse" ? 1 : edgeScale)
+      );
     }
   };
 
   for (const [type, ranges] of Object.entries(types)) {
-    pack(type, rollCount(ranges.center, rng), zones.center);
-    pack(type, rollCount(ranges.edge, rng), zones.edge);
+    spawnPack(type, rollCount(ranges.center, rng), zones.center);
+    spawnPack(type, rollCount(ranges.edge, rng), zones.edge);
   }
 
   return enemies;

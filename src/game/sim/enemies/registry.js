@@ -19,8 +19,8 @@ export const ENEMY_TYPES = {
   golem: { def: golemDef, Class: GolemEnemy },
 };
 
-export function makeEnemy(type, x, y, rng, mul = 1) {
+export function makeEnemy(type, x, y, rng, edgeScale = 1) {
   const t = ENEMY_TYPES[type];
   if (!t) throw new Error(`Неизвестный тип врага: ${type}`);
-  return new t.Class(x, y, t.def, rng, mul);
+  return new t.Class(x, y, t.def, rng, edgeScale);
 }

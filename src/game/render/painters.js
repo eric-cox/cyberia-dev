@@ -9,7 +9,7 @@ import { TIER_COLORS } from "../data/items.js";
 
 // ---------- игрок ----------
 export function drawPlayer(ctx, p) {
-  const anim = p.attackAnimT > 0 ? "attack" : p.moving ? "walk" : "idle";
+  const anim = p.attackAnimTime > 0 ? "attack" : p.moving ? "walk" : "idle";
   const idx = artSystem.animIndex("player", anim, p.animT);
   const lx = Math.cos(p.face) * p.lunge * 4;
   const ly = Math.sin(p.face) * p.lunge * 4;
@@ -43,7 +43,7 @@ export function drawEnemy(ctx, e) {
 
   const idx = artSystem.animIndex(art, anim, e.animT);
   const shake = e.state === "windup" ? (Math.random() - 0.5) * 1.6 : 0;
-  const scale = e.def.scale * e.mul;
+  const scale = e.def.scale * e.edgeScale;
 
   ctx.fillStyle = "rgba(10,15,30,0.35)";
   const sw = e.r * 2;

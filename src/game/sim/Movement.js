@@ -14,7 +14,9 @@ export function steer(e, desiredX, desiredY, map, dt) {
   const cell = map.cellAt(e.x, e.y);
   const grip = 1 - cell.inertia;
   const response = 0.7 + grip * 12; // 1/сек: как быстро скорость меняется
-  const k = Math.min(1, response * dt);
-  e.vx += (desiredX - e.vx) * k;
-  e.vy += (desiredY - e.vy) * k;
+  // Доля пути до желаемой скорости за этот кадр (0..1).
+  // Малая доля на льду = скорость меняется медленно = скольжение.
+  const blend = Math.min(1, response * dt);
+  e.vx += (desiredX - e.vx) * blend;
+  e.vy += (desiredY - e.vy) * blend;
 }

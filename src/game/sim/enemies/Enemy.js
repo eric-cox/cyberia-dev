@@ -13,32 +13,33 @@ import { Entity } from "../Entity.js";
 import { steer } from "../Movement.js";
 
 export class Enemy extends Entity {
-  // mul — «полярный множитель» силы (см. EnemyFactory)
-  constructor(x, y, def, rng, mul = 1) {
+  // edgeScale — «полярный множитель»: во сколько раз зверь сильнее
+  // базового (растёт с удалением от центра, см. EnemyFactory).
+  constructor(x, y, def, rng, edgeScale = 1) {
     super(x, y);
     this.type = def.type;
     this.def = def;
-    this.mul = mul;
-    this.r = def.r * Math.min(mul, 1.3);
-    this.maxHp = Math.round(def.hp * mul);
+    this.edgeScale = edgeScale;
+    this.r = def.r * Math.min(edgeScale, 1.3);
+    this.maxHp = Math.round(def.hp * edgeScale);
     this.hp = this.maxHp;
-    this.dmg = Math.round(def.dmg * mul);
+    this.dmg = Math.round(def.dmg * edgeScale);
 
     this.state = "wander";
-    this.animT = rng() * 10;
+    this.animT = rng() * 10; // сдвиг фазы анимации, чтобы звери не шагали синхронно
     this.flash = 0;
     this.flip = rng() < 0.5;
-    this.wanderT = 0;
-    this.wx = x;
+    this.wanderTimer = 0;
+    this.wx = x; // цель блуждания
     this.wy = y;
-    this.attackCd = 1 + rng() * 1.5;
-    this.windT = 0;
-    this.strikeT = 0;
-    this.ramCd = 0;
-    this.kx = 0;
-    this.ky = 0;
+    this.attackCooldown = 1 + rng() * 1.5;
+    this.windupTimer = 0;
+    this.strikeTimer = 0;
+    this.ramCooldown = 0; // пауза между повторными ударами тарана (носорог)
+    this.knockX = 0; // импульс отдачи от удара игрока
+    this.knockY = 0;
     this.growled = false;
-    this.voiceCd = 2 + rng() * 3; // периодический голос в погоне
+    this.voiceCooldown = 2 + rng() * 3; // периодический голос в погоне
   }
 
   // ---------- хуки для подклассов ----------
@@ -80,26 +81,28 @@ export class Enemy extends Entity {
     });
   }
 
-  // ---------- основной цикл ----------
+  // ---------- основной цикл: автомат wander→chase→windup→strike ----------
   update(dt, sim) {
     const p = sim.player;
     this.flash = Math.max(0, this.flash - dt);
-    this.attackCd -= dt;
+    this.attackCooldown -= dt;
     const d = Math.hypot(p.x - this.x, p.y - this.y);
 
-    // отдача от ударов — импульс в скорость (на льду зверя уносит)
-    if (this.kx || this.ky) {
-      this.vx += this.kx;
-      this.vy += this.ky;
-      this.kx = 0;
-      this.ky = 0;
+    // Отдача от удара игрока: разовый импульс вливается в скорость.
+    // Дальше её гасит инерция (на льду зверя уносит далеко).
+    if (this.knockX || this.knockY) {
+      this.vx += this.knockX;
+      this.vy += this.knockY;
+      this.knockX = 0;
+      this.knockY = 0;
     }
 
     switch (this.state) {
+      // Блуждание: раз в пару секунд выбирает случайную точку рядом.
       case "wander": {
-        this.wanderT -= dt;
-        if (this.wanderT <= 0) {
-          this.wanderT = 1.5 + Math.random() * 2.5;
+        this.wanderTimer -= dt;
+        if (this.wanderTimer <= 0) {
+          this.wanderTimer = 1.5 + Math.random() * 2.5;
           const a = Math.random() * Math.PI * 2;
           this.wx = this.x + Math.cos(a) * 40;
           this.wy = this.y + Math.sin(a) * 40;
@@ -108,53 +111,56 @@ export class Enemy extends Entity {
         if (d < this.def.aggro) {
           this.state = "chase";
           if (!this.growled) {
-            this.growled = true;
+            this.growled = true; // рычит один раз при обнаружении
             if (d < 220) this.speak(sim);
           }
         }
         break;
       }
+      // Погоня: преследует, пока игрок не оторвался (гистерезис ×1.5).
       case "chase": {
         if (d > this.def.aggro * 1.5) {
           this.state = "wander";
           break;
         }
-        // периодический тихий голос, пока преследует
-        this.voiceCd -= dt;
-        if (this.voiceCd <= 0) {
-          this.voiceCd = (this.def.voice ? this.def.voice.every : 4) + Math.random() * 2;
+        this.voiceCooldown -= dt;
+        if (this.voiceCooldown <= 0) {
+          this.voiceCooldown =
+            (this.def.voice ? this.def.voice.every : 4) + Math.random() * 2;
           if (d < 300) this.speak(sim, true);
         }
-        if (d <= this.def.range + p.r + 2 && this.attackCd <= 0) {
+        if (d <= this.def.range + p.r + 2 && this.attackCooldown <= 0) {
           this.state = "windup";
-          this.windT = this.windupTime();
+          this.windupTimer = this.windupTime();
           if (this.windupVoice()) this.speak(sim);
           break;
         }
         this.moveToward(p.x, p.y, this.chaseSpeed(), dt, sim);
         break;
       }
+      // Замах (телеграф): стоит на месте, потом бьёт с рывком.
       case "windup": {
-        this.windT -= dt;
+        this.windupTimer -= dt;
         this.flip = p.x < this.x;
-        if (this.windT <= 0) {
+        if (this.windupTimer <= 0) {
           this.state = "strike";
-          this.strikeT = this.strikeDuration();
-          this.ramCd = 0;
+          this.strikeTimer = this.strikeDuration();
+          this.ramCooldown = 0;
           const ang = Math.atan2(p.y - this.y, p.x - this.x);
-          this.kx = Math.cos(ang) * this.strikeLunge();
-          this.ky = Math.sin(ang) * this.strikeLunge();
+          this.knockX = Math.cos(ang) * this.strikeLunge();
+          this.knockY = Math.sin(ang) * this.strikeLunge();
           if (d <= this.def.range + p.r + this.strikeReach())
             sim.damagePlayer(this.dmg, this);
         }
         break;
       }
+      // Удар: рывок уже задан импульсом; длится strikeDuration.
       case "strike": {
-        this.strikeT -= dt;
+        this.strikeTimer -= dt;
         this.duringStrike(dt, sim);
-        if (this.strikeT <= 0) {
+        if (this.strikeTimer <= 0) {
           this.state = "chase";
-          this.attackCd = this.def.cd;
+          this.attackCooldown = this.def.cd;
         }
         break;
       }
