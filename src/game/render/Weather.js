@@ -18,6 +18,11 @@
 //  переходит в серо-чёрную фазу на darkPhase секунд (1–2 мин),
 //  затем возвращается к белому. Перекрас плавный (transition).
 //
+//  Плотность: снег «дышит» — медленная пульсация делает его то
+//  гуще, то реже. А периодически налетает метель: локальная
+//  зона, внутри которой снега кратно больше (≈5×). Зону несёт
+//  ветер, живёт она blizzardDuration секунд.
+//
 //  Производительность: дальние слои — предрассчитанные канвасы,
 //  снежинки отсортированы по (цвет × размер) — за кадр ≤6 смен
 //  fillStyle, в циклах update/draw нет ни одной аллокации.
@@ -31,6 +36,14 @@ const DEFAULT_CFG = {
   transition: 3, // плавность перекраса (сек)
   windChange: [12, 28], // сек между сменами направления ветра
   windStrength: [45, 95], // сила ветра, px/сек
+  // Метель — локальная зона, где снега КРАТНО больше (≈5×):
+  // раз в blizzardEvery секунд с шансом blizzardChance возникает
+  // область радиусом blizzardRadius, живущая blizzardDuration.
+  blizzardEvery: [50, 100],
+  blizzardChance: 0.4,
+  blizzardDuration: [16, 30],
+  blizzardRadius: [220, 380],
+  blizzardFlakes: 600, // снежинок в зоне — даёт кратный прирост
 };
 
 const TILE = 512;
@@ -89,6 +102,29 @@ export class Weather {
     // сортировка по белой группе: в кадре fillStyle меняется ≤6 раз
     this.flakes.sort((a, b) => a.groupWhite - b.groupWhite);
 
+    // --- общая плотность (снег «дышит»: то гуще, то реже) ---
+    this.intensity = 1;
+    this.threshold = -0.25; // порог видимости снежинок (из update)
+
+    // --- метель: пул плотных снежинок для локальной зоны ---
+    this.zone = null;
+    this.zoneT = this.randRange(this.cfg.blizzardEvery);
+    this.zoneFlakes = [];
+    for (let i = 0; i < this.cfg.blizzardFlakes; i++) {
+      const sizeRoll = Math.random();
+      const size = sizeRoll < 0.5 ? 1 : sizeRoll < 0.85 ? 2 : 3;
+      this.zoneFlakes.push({
+        ox: 0, // смещение от центра зоны (пересыпается при спавне)
+        oy: 0,
+        mult: 0.8 + Math.random() * 0.6 + size * 0.3,
+        size,
+        groupWhite: size - 1,
+        groupDark: size + 2,
+        shadeAt: Math.random(),
+      });
+    }
+    this.zoneFlakes.sort((a, b) => a.groupWhite - b.groupWhite);
+
     // --- фазовая машина цвета ---
     this.dark = false;
     this.mix = 0; // 0 = белый снег, 1 = серо-чёрный
@@ -107,12 +143,13 @@ export class Weather {
     };
   }
 
-  // Для HUD: направление (рад) и сила 0..1
+  // Для HUD: направление (рад), сила 0..1 и идёт ли метель
   windInfo() {
     const [lo, hi] = this.cfg.windStrength;
     return {
       angle: this.windAngle,
       strength: Math.max(0, Math.min(1, (this.windStrength - lo) / (hi - lo))),
+      blizzard: !!this.zone,
     };
   }
 
@@ -207,10 +244,20 @@ export class Weather {
       o.y = ((o.y % TILE) + TILE) % TILE;
     }
 
-    // ближние снежинки + медленные волны плотности
+    // --- общая плотность: снег «дышит» (то гуще, то реже),
+    // в метель везде чуть гуще ---
+    this.intensity =
+      1 +
+      0.28 * Math.sin(this.t * 0.05) +
+      0.16 * Math.sin(this.t * 0.031 + 1.3) +
+      (this.zone ? 0.3 : 0);
+
+    // ближние снежинки + медленные волны плотности.
+    // Чем выше интенсивность, тем ниже порог → больше снега видно.
     const w1 = Math.sin(this.t * 0.23);
     const w2 = Math.sin(this.t * 0.155 + 2.1);
-    this.threshold = -0.25 + w1 * 0.2 + w2 * 0.15;
+    this.threshold =
+      -0.25 + w1 * 0.2 + w2 * 0.15 - (this.intensity - 1) * 0.55;
     for (const f of this.flakes) {
       const jitter = Math.sin(f.y * 0.012 + f.ph) * 14;
       f.x += (wx * f.mult + jitter) * dt;
@@ -226,17 +273,65 @@ export class Weather {
       if (f.x > this.w + 6) f.x = -8;
       else if (f.x < -10) f.x = this.w + 4;
     }
+
+    // --- метель: локальная зона кратной плотности ---
+    this.zoneT -= dt;
+    if (!this.zone && this.zoneT <= 0) {
+      if (Math.random() < this.cfg.blizzardChance) {
+        this.zone = {
+          x: this.w * (0.15 + Math.random() * 0.7),
+          y: this.h * (0.15 + Math.random() * 0.7),
+          r: this.randRange(this.cfg.blizzardRadius),
+          life: this.randRange(this.cfg.blizzardDuration),
+        };
+        // пересыпать пул внутрь новой зоны
+        const zr = this.zone.r;
+        for (const f of this.zoneFlakes) {
+          f.ox = (Math.random() * 2 - 1) * zr;
+          f.oy = (Math.random() * 2 - 1) * zr;
+        }
+        this.bus && this.bus.emit("blizzard", { active: true });
+      }
+      this.zoneT = this.randRange(this.cfg.blizzardEvery);
+    }
+    if (this.zone) {
+      this.zone.life -= dt;
+      // зону медленно несёт ветер
+      this.zone.x += wx * 0.4 * dt;
+      this.zone.y += wy * 0.4 * dt;
+      if (this.zone.life <= 0) {
+        this.zone = null;
+        this.bus && this.bus.emit("blizzard", { active: false });
+      }
+    }
+    // снежинки метели — обновляются, только пока зона жива
+    if (this.zone) {
+      const zr = this.zone.r;
+      for (const f of this.zoneFlakes) {
+        f.oy += (GRAVITY * f.mult + wy * f.mult) * dt * 1.3;
+        f.ox += wx * f.mult * dt * 1.3;
+        if (f.oy > zr) {
+          f.oy = -zr;
+          f.ox = (Math.random() * 2 - 1) * zr;
+        }
+        if (f.ox > zr) f.ox = -zr;
+        else if (f.ox < -zr) f.ox = zr;
+      }
+    }
   }
 
   // ---------- отрисовка ----------
   draw(ctx) {
     const mix = this.mix;
 
-    // дальние слои: при чистых фазах рисуется только один набор тайлов
+    // дальние слои: при чистых фазах рисуется только один набор тайлов.
+    // Интенсивность делает снег в целом гуще/реже.
+    const ia = Math.max(0.55, Math.min(1.5, this.intensity));
     for (let i = 0; i < this.farOffsets.length; i++) {
       const o = this.farOffsets[i];
-      if (mix < 0.999) this.drawTiled(ctx, this.farWhite[i], o.x, o.y, (1 - mix) * (i === 0 ? 0.5 : 0.8));
-      if (mix > 0.001) this.drawTiled(ctx, this.farDark[i], o.x, o.y, mix * (i === 0 ? 0.5 : 0.8));
+      const base = i === 0 ? 0.5 : 0.8;
+      if (mix < 0.999) this.drawTiled(ctx, this.farWhite[i], o.x, o.y, (1 - mix) * base * ia);
+      if (mix > 0.001) this.drawTiled(ctx, this.farDark[i], o.x, o.y, mix * base * ia);
     }
 
     // ближние снежинки: сгустки через медленные волны —
@@ -256,6 +351,26 @@ export class Weather {
         current = group;
       }
       ctx.fillRect(f.x | 0, f.y | 0, f.size, f.size);
+    }
+
+    // метель: плотная локальная зона (кратный прирост снега)
+    if (this.zone) {
+      const zx = this.zone.x;
+      const zy = this.zone.y;
+      const zr2 = this.zone.r * this.zone.r;
+      current = -1;
+      for (const f of this.zoneFlakes) {
+        // круглая область зоны
+        if (f.ox * f.ox + f.oy * f.oy > zr2) continue;
+        const group = f.shadeAt < mix ? f.groupDark : f.groupWhite;
+        if (group !== current) {
+          const gr = GROUPS[group];
+          ctx.fillStyle = gr.fill;
+          ctx.globalAlpha = gr.alpha;
+          current = group;
+        }
+        ctx.fillRect((zx + f.ox) | 0, (zy + f.oy) | 0, f.size, f.size);
+      }
     }
     ctx.globalAlpha = 1;
   }

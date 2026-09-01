@@ -110,6 +110,14 @@ export default class Game {
         text: dark ? "ПУРГА ЧЕРНЕЕТ…" : "СНЕГ СНОВА БЕЛЫЙ",
       });
     });
+    b.on("blizzard", ({ active }) => {
+      // метель: порыв ветра и предупреждение
+      this.sfx.blizzard(active);
+      this.toast({
+        kind: "sys",
+        text: active ? "НАДВИГАЕТСЯ МЕТЕЛЬ" : "МЕТЕЛЬ УТИХЛА",
+      });
+    });
     b.on("pickup", (e) => {
       this.sfx.pickup(e.item.tier);
       const { item, isNew, equipped, statText } = e;

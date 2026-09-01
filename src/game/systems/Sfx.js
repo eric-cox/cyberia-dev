@@ -76,6 +76,27 @@ export class Sfx {
     o.start(t0);
     o.stop(t0 + 1.4);
   }
+  // метель: нарастающий (или стихающий) шумовой порыв
+  blizzard(on) {
+    if (!this.ctx || this.muted || !this.noiseBuf) return;
+    const t0 = this.ctx.currentTime;
+    const src = this.ctx.createBufferSource();
+    src.buffer = this.noiseBuf;
+    src.loop = true;
+    const flt = this.ctx.createBiquadFilter();
+    flt.type = "bandpass";
+    flt.frequency.value = on ? 500 : 300;
+    flt.Q.value = 0.6;
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(on ? 0.16 : 0.05, t0 + (on ? 1.6 : 0.8));
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + (on ? 2.6 : 1.6));
+    src.connect(flt);
+    flt.connect(g);
+    g.connect(this.master);
+    src.start(t0, Math.random());
+    src.stop(t0 + (on ? 2.8 : 1.8));
+  }
 
   tone({ f = 440, f2 = null, t = 0.12, type = "square", v = 0.18, delay = 0 }) {
     if (!this.ctx || this.muted) return;

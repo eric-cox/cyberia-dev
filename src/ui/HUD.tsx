@@ -84,7 +84,7 @@ export type Snapshot = {
   inv: InvItem[];
   muted: boolean;
   stats: { bestTime: number; totalKills: number; runs: number; victories: number; inv: string[] };
-  wind: { angle: number; strength: number };
+  wind: { angle: number; strength: number; blizzard: boolean };
 };
 export type Toast = { id: number; kind: string; text: string; tier?: number };
 
@@ -341,7 +341,11 @@ function XpBar({ xp, xpNext, level }: { xp: number; xpNext: number; level: numbe
 }
 
 // ---------- флюгер: направление и сила ветра ----------
-function WindVane({ wind }: { wind: { angle: number; strength: number } }) {
+function WindVane({
+  wind,
+}: {
+  wind: { angle: number; strength: number; blizzard: boolean };
+}) {
   if (!wind) return null;
   const deg = (wind.angle * 180) / Math.PI;
   const segs = Math.round(wind.strength * 3); // 0..3
@@ -374,6 +378,14 @@ function WindVane({ wind }: { wind: { angle: number; strength: number } }) {
           />
         ))}
       </span>
+      {wind.blizzard && (
+        <span
+          className="font-pixel text-[7px] px-1.5 py-1 blink-soft"
+          style={{ color: "#a9d7f2", border: "1px solid #6fd6ff" }}
+        >
+          МЕТЕЛЬ
+        </span>
+      )}
     </div>
   );
 }
