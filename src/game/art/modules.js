@@ -6,16 +6,18 @@
 import { defineArt } from "./pixel.js";
 
 // ---------- палитры ----------
+// Палитра Тихохода — приглушённая, «ржавое железо и кость» (WORLD §3.1).
 const PAL_PLAYER = {
-  k: "#10151f",
-  f: "#7a4a3a", // шапка
-  g: "#d9c9a8", // мех
-  h: "#e0b090", // кожа
-  e: "#20242c", // глаза
-  c: "#b45a38", // куртка
-  d: "#8a4229", // рукава
-  p: "#3e4a5e", // штаны
-  t: "#262d3a", // сапоги
+  k: "#10151f", // контур
+  f: "#6e4536", // шапка (пыльная кожа)
+  g: "#cbbfa0", // мех (пыльная кость)
+  h: "#d8a888", // кожа (почти не видна)
+  e: "#181d26", // провал лица
+  c: "#a55233", // куртка (ржавчина)
+  d: "#82412a", // рукава темнее
+  b: "#3a3f4a", // ремень
+  p: "#414c5e", // штаны (холодный сине-серый)
+  t: "#232936", // сапоги
 };
 const PAL_WOLF = {
   k: "#1c2430",
@@ -47,58 +49,73 @@ const PAL_TREE = {
   s: "#dfe9f5",
 };
 
-// ---------- игрок ----------
+// ---------- игрок (Тихоход) ----------
+// Реалистичные пропорции (WORLD §3.2): ушанка + тёмный провал лица,
+// тяжёлая куртка с ремнём, длинные ноги. Голова ≈ 1/4 роста — вместе
+// с крупной шапкой; само лицо — узкая тёмная щель, «почти не видно».
 const P_TOP = [
   "................",
-  "....kkkkkkkk....",
-  "...kffffffffk...",
-  "..kfggggggggfk..",
-  "..kfhhhhhhhhfk..",
-  "..kfhehhhehhfk..",
-  "..kfhhhhhhhhfk..",
-  "...kffffffffk...",
-  "....kccccccck...",
+  "......kkkk......",
+  ".....kffffk.....",
+  "....kffffffk....",
+  "...kggggggggk...", // меховая опушка ушанки
+  "...kgeeeeeegk...", // провал лица
+  "....kggggggk....", // воротник
+  "...kcccccccck...",
   "..kdccccccccdk..",
   "..kdccccccccdk..",
-  "...kccgggccck...",
+  "..kdccbbbbccdk..", // ремень
+  "..kdccccccccdk..",
+  "...kccggggcck...", // меховая опушка куртки
 ];
 const P_LEGS_A = [
-  "...kppppppppk...",
-  "...kppk..kppk...",
-  "...kttk..kttk...",
-  "..ktttk..ktttk..",
+  "....kppppppk....",
+  "....kppk.kppk...",
+  "....kppk.kppk...",
+  "....kppk.kppk...",
+  "....kppk.kppk...",
+  "....kppk.kppk...",
+  "....kttk.kttk...",
+  "...ktttk.ktttk..",
+  "..kttttk.kttttk.",
 ];
 const P_LEGS_B = [
-  "...kppppppppk...",
-  "..kppk...kppk...",
+  "....kppppppk....",
+  "....kppkkppk....",
+  "...kppk..kppk...",
+  "...kppk..kppk...",
+  "..kppk....kppk..",
   "..kttk....kttk..",
-  "..kttk....kttk..",
+  "..kttk.....kttk.",
+  ".ktttk.....ktttk",
+  ".ktttk.....ktttk",
 ];
 const P_LEGS_C = [
-  "...kppppppppk...",
-  "...kppk..kppk...",
-  "..kttk....kttk..",
-  ".kttk......kttk.",
-];
-const P_ATTK_LEGS = [
-  "...kppppppppk...",
-  "...kppppppppk...",
-  "...kttk..kttk...",
-  "..ktttk..ktttk..",
+  "....kppppppk....",
+  "....kppk.kppk...",
+  "....kppk.kppk...",
+  "....kppk.kppk...",
+  "....kttk.kppk...",
+  "....kttk.kttk...",
+  "....kttk.kttk...",
+  "....kkk..ktttk..",
+  ".........ktttk..",
 ];
 const playerFrame = (legs) => P_TOP.concat(legs);
-const attackFrame = P_TOP.slice(0, 9)
+const attackFrame = P_TOP.slice(0, 8)
   .concat([
-    ".kdccccccccccdk.",
-    ".kdccccccccccdk.",
-    "...kccgggccck...",
+    "..kdcccccccccdk.", // руки выброшены вперёд
+    "..kccccccccccdk.",
+    ".kdccbbbbcccddk.",
+    "..kdcccccccck...",
+    "...kccggggcck...",
   ])
-  .concat(P_ATTK_LEGS);
+  .concat(P_LEGS_A);
 
 const playerArt = defineArt({
   id: "player",
   w: 16,
-  h: 16,
+  h: 22,
   palette: PAL_PLAYER,
   animations: {
     idle: { fps: 2, frames: [playerFrame(P_LEGS_A), playerFrame(P_LEGS_A)] },

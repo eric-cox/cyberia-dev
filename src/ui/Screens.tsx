@@ -40,8 +40,10 @@ function CharacterFigure() {
     ctx.clearRect(0, 0, cv.width, cv.height);
     const frame = artSystem.frameCanvas("player", "idle", 0);
     if (!frame) return;
-    const s = 7;
-    ctx.drawImage(frame, (cv.width - frame.width * s) / 2, cv.height - frame.height * s - 2, frame.width * s, frame.height * s);
+    // адаптивный масштаб: фигура всегда вписывается в канвас,
+    // даже если спрайт поменяет пропорции
+    const s = Math.max(1, Math.floor(Math.min(cv.width / frame.width, (cv.height - 6) / frame.height)));
+    ctx.drawImage(frame, (cv.width - frame.width * s) / 2, cv.height - frame.height * s - 3, frame.width * s, frame.height * s);
   }, []);
   return (
     <canvas
