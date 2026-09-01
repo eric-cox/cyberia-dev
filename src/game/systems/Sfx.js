@@ -141,6 +141,28 @@ export class Sfx {
     else this.lowGrowl(voice, v);
   }
 
+  // Голос при попадании: тот же тембр и частота, что и обычный
+  // писк/рык, но чуть длиннее — со случайным отклонением ±200мс.
+  hurtVoice(voice) {
+    if (!voice) return;
+    // защита от хора писков, если один взмах задел стаю
+    const now = performance.now();
+    if (now - (this._hurtVoiceAt || 0) < 50) return;
+    this._hurtVoiceAt = now;
+    const baseMs = (voice.dur || 0.2) * 1000;
+    const extra = (Math.random() * 2 - 1) * 200; // ±200мс
+    const dur = Math.max(90, baseMs + extra) / 1000;
+    this.growl({ ...voice, dur }, false);
+  }
+
+  // Предсмертный вопль: та же частота, длиннее на 500мс,
+  // тон скатывается вниз (glide).
+  deathVoice(voice) {
+    if (!voice) return;
+    const dur = (voice.dur || 0.2) + 0.5;
+    this.growl({ ...voice, dur, glide: true }, false);
+  }
+
   squeak(voice, v) {
     const t0 = this.ctx.currentTime;
     const { freq, dur } = voice;
@@ -148,6 +170,9 @@ export class Sfx {
     const o = this.ctx.createOscillator();
     o.type = "sine";
     o.frequency.setValueAtTime(freq, t0);
+    // предсмертный вопль: тон скатывается вниз
+    if (voice.glide)
+      o.frequency.exponentialRampToValueAtTime(Math.max(40, freq * 0.5), t0 + dur);
     // быстрое вибрато — живое "пи-пи"
     const lfo = this.ctx.createOscillator();
     lfo.frequency.value = 34;
@@ -175,7 +200,9 @@ export class Sfx {
     const o = this.ctx.createOscillator();
     o.type = voice.wave || "sawtooth";
     o.frequency.setValueAtTime(freq * 1.25, t0);
-    o.frequency.exponentialRampToValueAtTime(Math.max(20, freq * 0.66), t0 + dur);
+    // предсмертный рык уходит глубже обычного
+    const glideTo = voice.glide ? freq * 0.35 : freq * 0.66;
+    o.frequency.exponentialRampToValueAtTime(Math.max(20, glideTo), t0 + dur);
     const flt = this.ctx.createBiquadFilter();
     flt.type = "lowpass";
     flt.frequency.value = Math.min(900, freq * 7);

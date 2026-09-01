@@ -74,18 +74,16 @@ export default class Game {
   wireEvents() {
     const b = this.bus;
     b.on("attack", () => this.sfx.swing());
-    b.on("hit", () => {
+    b.on("hit", (e) => {
       this.sfx.hit();
+      if (e.voice) this.sfx.hurtVoice(e.voice); // писк на своей частоте, чуть длиннее
       this.hitstop = 0.045;
       this.camera.addTrauma(0.22);
     });
     b.on("kill", (e) => {
       this.sfx.kill();
-      if (e.type === "golem") {
-        this.camera.addTrauma(0.65);
-        // предсмертный стон исполина — ниже его обычного рыка
-        this.sfx.lowGrowl({ freq: 45, wave: "sawtooth", dur: 0.9 }, 0.2);
-      }
+      if (e.voice) this.sfx.deathVoice(e.voice); // предсмертный вопль, +500мс
+      if (e.type === "golem") this.camera.addTrauma(0.65);
     });
     b.on("hurt", () => {
       this.sfx.hurt();

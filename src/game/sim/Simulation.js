@@ -290,7 +290,7 @@ export class Simulation {
     e.kx = Math.cos(angle) * 150;
     e.ky = Math.sin(angle) * 150;
     if (e.state === "wander") e.state = "chase";
-    this.bus.emit("hit", { x: e.x, y: e.y, dmg });
+    this.bus.emit("hit", { x: e.x, y: e.y, dmg, voice: e.def.voice, name: e.def.name });
     if (e.hp <= 0) this.killEnemy(e);
   }
 
@@ -298,7 +298,7 @@ export class Simulation {
     e.dead = true;
     this.kills++;
     for (let i = 0; i < e.def.orbs; i++) this.orbs.spawn(e.x, e.y - 4);
-    this.bus.emit("kill", { x: e.x, y: e.y, name: e.def.name, type: e.type });
+    this.bus.emit("kill", { x: e.x, y: e.y, name: e.def.name, type: e.type, voice: e.def.voice });
   }
 
   // Урон игроку (удары мутантов). Провалы бьют по теплу напрямую.
