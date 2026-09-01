@@ -2,8 +2,10 @@
 //  loot/RunLoot — правила лута ОДНОГО забега:
 //    • placeRunLoot — где артефакты лежат на карте (по тирам —
 //      кольца из Difficulty; выше тир → дальше от центра);
-//    • collectArtifact — что происходит при подборе
-//      (в схрон + авто-надевание по правилам Equipment).
+//    • collectArtifact — что происходит при подборе: предмет
+//      кладётся в схрон; базовый лут (тир ≤ loot.autoEquipMaxTier)
+//      надевается сразу, а ПРОДВИНУТЫЙ — нет: его снаряжают
+//      только между играми (LoadoutScreen).
 //
 //  Расширение: новые предметы добавляются в data/items.js
 //  (реестр) и, при желании, в RUN_LOOT; новые правила дропа
@@ -24,11 +26,14 @@ export function placeRunLoot(map, rng, diff) {
   return pickups;
 }
 
-// Обработка подбора: схрон + авто-экипировка.
+// Обработка подбора: предмет всегда кладётся в схрон; базовый
+// лут (тир ≤ diff.loot.autoEquipMaxTier) дополнительно надевается
+// сразу, продвинутый — остаётся в схроне до экрана снаряжения.
 // Возвращает { isNew, equipped } для тостов/событий.
-export function collectArtifact(store, equipment, item) {
+export function collectArtifact(store, equipment, item, diff) {
   const isNew = store.addItem(item.id);
-  const equipped = equipment.tryAutoEquip(item);
+  const maxTier = diff.loot.autoEquipMaxTier;
+  const equipped = item.tier <= maxTier ? equipment.tryAutoEquip(item) : false;
   return { isNew, equipped };
 }
 

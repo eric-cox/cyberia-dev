@@ -105,15 +105,13 @@ export default class Game {
     b.on("pickup", (e) => {
       this.sfx.pickup(e.item.tier);
       const { item, isNew, equipped, statText } = e;
-      this.toast({
-        kind: "item",
-        text: !isNew
-          ? `${item.name} — уже в схроне`
-          : equipped
-            ? `${item.name} · надето · ${statText}`
-            : `${item.name} · в схрон · ${statText}`,
-        tier: item.tier,
-      });
+      // базовый лут надевается сразу, продвинутый — только в схрон:
+      // снарядить его можно между играми на экране снаряжения
+      let text;
+      if (!isNew) text = `${item.name} — уже в схроне`;
+      else if (equipped) text = `${item.name} · надето · ${statText}`;
+      else text = `${item.name} · в схрон · надень в снаряжении`;
+      this.toast({ kind: "item", text, tier: item.tier });
       this.pushSnapshot();
     });
     b.on("death", ({ time, kills }) => {

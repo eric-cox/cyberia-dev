@@ -209,10 +209,17 @@ export class Simulation {
     this.pickups = this.pickups.filter((pk) => !pk.dead);
   }
 
+  // Подбор кладёт артефакт в схрон; базовый лут надевается сразу,
+  // продвинутый — нет (см. loot/RunLoot.collectArtifact).
   collect(pk) {
     this.foundThisRun++;
     const item = pk.item;
-    const { isNew, equipped } = collectArtifact(this.store, this.equipment, item);
+    const { isNew, equipped } = collectArtifact(
+      this.store,
+      this.equipment,
+      item,
+      this.diff
+    );
     this.bus.emit("pickup", {
       x: pk.x,
       y: pk.y,

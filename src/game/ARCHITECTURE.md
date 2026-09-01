@@ -30,9 +30,9 @@
 | engine | `engine/Input.js`, `engine/Camera.js` | Команда игрока за кадр; камера + тряска |
 | systems | `systems/Difficulty.js`, `systems/SaveStore.js`, `systems/Sfx.js` | Баланс (единый источник чисел), персистентность, звук |
 | data | `data/items.js` | Реестр артефактов (одежда/оружие, тиры) |
-| loot | `loot/Equipment.js`, `loot/RunLoot.js` | Diablo-экипировка (слоты, авто-надевание, выброс); раскладка лута по карте |
+| loot | `loot/Equipment.js`, `loot/RunLoot.js` | Diablo-экипировка (слоты, надеть/снять/выброс); раскладка лута по карте |
 | world | `world/tiles.js`, `world/WorldMap.js`, `world/WorldGen.js` | Реестр ячеек (speed/inertia/solid); данные карты + запросы; генерация |
-| sim | `sim/Simulation.js`, `sim/Movement.js`, `sim/Player.js`, `sim/Pickup.js`, `sim/Orbs.js`, `sim/Entity.js` | Чистая игровая логика забега; инерционное движение |
+| sim | `sim/Simulation.js`, `sim/Movement.js`, `sim/Player.js`, `sim/Pickup.js`, `sim/Experience.js`, `sim/Entity.js` | Чистая игровая логика забега; инерционное движение; опыт и уровни |
 | sim/enemies | `Enemy.js` (базовый ИИ) + файлы видов + `registry.js` + `EnemyFactory.js` | Типы врагов и правила расселения |
 | render | `Renderer.js`, `painters.js`, `TerrainPainter.js`, `Fx.js`, `Weather.js` | Вся отрисовка; эффекты-подписчики событий |
 | art | `art/pixel.js`, `art/modules.js` | Микромодули пиксель-арта: палитра + кадры (сетки или Painter-код) |
@@ -98,6 +98,12 @@
     тон скатывается вниз (`glide`).
 
 ### Лут
+- **Продвинутый лут не надевается на лету**: во время забега базовый лут
+  (тир ≤ `loot.autoEquipMaxTier`, по умолчанию 1) надевается сразу, а всё,
+  что выше, уходит в схрон (`RunLoot.collectArtifact`). Снарядить продвинутые
+  находки можно только между играми, на экране снаряжения (`LoadoutScreen` →
+  `Equipment.equip/unequip/discard`). Порог — одно число в `Difficulty`,
+  легко меняется под баланс или ивент (`0` — ничего не надевать).
 - Новые предметы: реестр `data/items.js` (+ `RUN_LOOT`) и микро-модуль арта.
 - Новые правила (дроп с боссов, сундуки, редкости): `loot/RunLoot.js`.
 - Новые слоты экипировки: ключ в `systems/SaveStore.js` (defaults.equipped)
