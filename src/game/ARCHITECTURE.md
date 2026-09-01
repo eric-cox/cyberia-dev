@@ -34,7 +34,7 @@
 | core | `core/Utils.js`, `core/Rng.js`, `core/EventBus.js`, `core/Constants.js` | Утилиты, детерминированный РНГ, шина событий, тайлы |
 | engine | `engine/Input.js`, `engine/Camera.js` | Команда игрока за кадр; камера + тряска |
 | systems | `systems/Difficulty.js`, `systems/SaveStore.js`, `systems/Sfx.js` | Баланс (единый источник чисел), персистентность, звук |
-| data | `data/items.js` | Реестр артефактов (одежда/оружие, тиры) |
+| data | `data/items.js`, `data/bestiary.js` | Реестр артефактов (одежда/оружие, тиры); описания врагов (лор для бестиария) |
 | loot | `loot/Equipment.js`, `loot/RunLoot.js` | Diablo-экипировка (слоты, надеть/снять/выброс); раскладка лута по карте |
 | world | `world/tiles.js`, `world/WorldMap.js`, `world/WorldGen.js` | Реестр ячеек (speed/inertia/solid); данные карты + запросы; генерация |
 | sim | `sim/Simulation.js`, `sim/Movement.js`, `sim/Player.js`, `sim/Pickup.js`, `sim/Experience.js`, `sim/Entity.js` | Чистая игровая логика забега; инерционное движение; опыт и уровни |

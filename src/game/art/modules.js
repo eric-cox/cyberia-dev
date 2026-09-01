@@ -667,72 +667,139 @@ const mouseArt = defineArt({
 
 // ---------- Ледяной голем (исполин, рычит на 60 Гц) ----------
 // Сетка 64×64, единый пиксель (scale=1) — втрое выше героя.
-const drawGolem = ({ eye = "#6fd6ff", raise = 0, step = 0 } = {}) => (p) => {
+//
+// Лор: разум РОЯ микроорганизмов, разбуженных радиацией подо льдом.
+// Рой поднял себе панцирь изо льда. Ни ног, ни рук — только
+// корни-щупальца: пучок несёт тело, два пучка бьют. Всё в
+// замёрзшей крови и кусках плоти — голем впитывает тёплые
+// останки. Внутри панциря сквозь трещины мерцает свет роя.
+//
+// Параметры кадра:
+//   phase — фаза извивания корней (анимация движения);
+//   raise — корни поджаты (замах перед ударом);
+//   fury  — ярость: свет ярче, корни хлещут дальше.
+const drawGolem = ({ phase = 0, raise = 0, fury = 0 } = {}) => (p) => {
   const K = "#0d1220", D = "#2e3f5c", B = "#4a6288", M = "#6f8cb4",
-    H = "#a9c4e4", C = "#6fd6ff", W = "#dfeaf7";
-  // ===== руки (за туловищем); raise — подняты для замаха =====
-  const aTop = raise ? 12 : 24;
-  p.rect(6, aTop, 9, 26, K);
-  p.rect(7, aTop + 1, 7, 24, B);
-  p.rect(7, aTop + 1, 3, 24, M);
-  p.rect(5, aTop + 24, 12, 7, K);
-  p.rect(6, aTop + 25, 10, 5, D);
-  p.px(6, aTop + 25, C);
-  p.rect(49, aTop + 1, 9, 26, K);
-  p.rect(50, aTop + 2, 7, 24, D);
-  p.rect(47, aTop + 25, 12, 7, K);
-  p.rect(48, aTop + 26, 10, 5, D);
-  // ===== ноги =====
-  const lift = step ? 2 : 0;
-  p.rect(17, 46, 12, 16 - lift, K);
-  p.rect(18, 47, 10, 14 - lift, B);
-  p.rect(18, 47, 4, 14 - lift, M);
-  p.rect(35, 46, 12, 14 + lift, K);
-  p.rect(36, 47, 10, 12 + lift, D);
-  p.rect(14, 61 - lift, 17, 3, K);
-  p.rect(33, 59 + lift, 17, 3, K);
-  // ===== туловище =====
-  p.rect(13, 20, 38, 27, K);
-  p.rect(14, 21, 36, 25, B);
-  p.rect(14, 21, 10, 25, M);
-  p.rect(14, 21, 36, 5, H);
-  p.rect(42, 21, 8, 25, D);
-  // ледяные прожилки-трещины
-  p.rect(20, 30, 1, 8, D);
-  p.rect(44, 28, 1, 10, D);
-  p.px(21, 34, H); p.px(43, 32, H);
-  // светящееся ядро в груди
-  p.rect(29, 27, 3, 10, C);
-  p.rect(26, 30, 9, 3, C);
-  p.px(30, 28, W); p.px(31, 31, W);
-  p.rect(22, 40, 20, 1, D);
-  p.rect(22, 43, 20, 1, D);
-  // ===== плечи =====
-  p.rect(9, 18, 46, 8, K);
-  p.rect(10, 19, 44, 6, M);
-  p.rect(10, 19, 44, 2, H);
-  // ледяные кристаллы на плечах
-  p.rect(8, 12, 7, 7, K);
-  p.rect(9, 13, 5, 5, C);
-  p.px(11, 12, W);
-  p.rect(49, 12, 7, 7, K);
-  p.rect(50, 13, 5, 5, C);
-  p.px(52, 12, W);
-  // ===== голова =====
-  p.rect(23, 3, 18, 15, K);
-  p.rect(24, 4, 16, 13, B);
-  p.rect(24, 4, 5, 13, M);
-  p.rect(24, 4, 16, 3, H);
-  p.rect(36, 4, 4, 13, D);
-  p.rect(24, 8, 16, 1, D);
-  // глаза
-  p.px(27, 11, eye); p.px(28, 11, eye);
-  p.px(34, 11, eye); p.px(35, 11, eye);
-  p.rect(27, 15, 10, 2, D);
-  // ледяная корона
-  p.rect(29, 0, 6, 4, K);
-  p.px(29, 1, C); p.px(31, 1, W); p.px(33, 1, C);
-  p.px(30, 0, C); p.px(32, 0, C);
+    H = "#a9c4e4", C = "#6fd6ff", W = "#d6f6ff",
+    RB = "#7a2424", RD = "#4a1616", FL = "#c98a8a", FD = "#a86a6a";
+
+  const ICE = [B, M, D, K]; // сегменты корня: лёд темнеет к концу
+  const DARK = [D, D, K, K]; // дальние корни — силуэтом
+
+  // Корень-щупальце: от (x, y) в направлении (dx, dy), длина len.
+  // Изгиб — синусоида, растущая к концу (amp), частота freq,
+  // фаза ph. w — толщина, pal — цвета сегментов, blood — конец
+  // в замёрзшей крови (ими голем мнёт плоть).
+  const root = (x, y, len, dx, dy, amp, freq, ph, w = 1, pal = ICE, blood = false) => {
+    const L = Math.max(4, Math.round(len));
+    const l = Math.hypot(dx, dy) || 1;
+    const ux = dx / l, uy = dy / l;
+    const nx = -uy, ny = ux;
+    let tx = x, ty = y;
+    for (let i = 0; i < L; i++) {
+      const t = i / L;
+      const off = Math.sin(i * freq + ph) * amp * t;
+      tx = Math.round(x + ux * i + nx * off);
+      ty = Math.round(y + uy * i + ny * off);
+      p.rect(tx, ty, w, 1, pal[Math.min(3, Math.floor(t * 4))]);
+    }
+    p.px(tx, ty, pal === ICE ? H : M); // обледеневший кончик
+    if (blood) {
+      p.px(tx, ty - 1, RB);
+      p.px(tx + w - 1, ty - 2, RD);
+    }
+  };
+
+  // ===== задние корни (тёмные, за телом) =====
+  const backXs = [21, 27, 33, 39];
+  for (let i = 0; i < backXs.length; i++)
+    root(backXs[i], 41, 17 - raise * 6 + Math.sin(i * 2.1 + phase) * 1.5,
+      0, 1, 2.5 + (i % 2), 0.42, phase + i * 1.7, 1, DARK);
+
+  // ===== руки-корни (пучки по 4; raise поднимает их) =====
+  const armLen = raise ? 13 : 19;
+  const armDirs = raise
+    ? [[-0.95, 0.1], [-0.75, 0.5], [-0.45, 0.8], [-0.1, 1]]
+    : [[-0.9, 0.5], [-0.7, 0.8], [-0.4, 1], [-0.1, 1.1]];
+  for (let s = 0; s < 2; s++) {
+    const sx = s === 0 ? 15 : 49;
+    const mir = s === 0 ? 1 : -1;
+    for (let i = 0; i < 4; i++) {
+      const [dx, dy] = armDirs[i];
+      root(sx, 19 + i, armLen - i * 1.5, dx * mir, dy,
+        2.2 + fury, 0.5, phase * 1.3 + i * 1.4 + s * 2.6,
+        i === 1 ? 2 : 1, ICE,
+        (s === 0 && i === 2) || (s === 1 && i === 1));
+    }
+  }
+
+  // ===== панцирь изо льда =====
+  p.rect(12, 15, 40, 6, K);
+  p.rect(13, 16, 38, 4, M);
+  p.rect(13, 16, 38, 1, H); // свет по кромке плеч
+  p.rect(15, 20, 34, 22, K);
+  p.rect(16, 21, 32, 20, B);
+  p.rect(16, 21, 6, 20, M); // свет слева
+  p.rect(16, 21, 2, 20, H);
+  p.rect(42, 21, 6, 20, D); // тень справа
+  // грани и трещины плит
+  p.vline(24, 21, 20, D);
+  p.vline(33, 21, 20, D);
+  p.vline(41, 21, 20, D);
+  p.hline(16, 28, 32, D);
+  p.hline(16, 35, 32, D);
+  p.px(20, 24, H); p.px(28, 31, H); p.px(37, 23, M); p.px(30, 38, H);
+
+  // ===== свет роя микроорганизмов (сквозь трещины) =====
+  p.px(24, 23, C); p.px(23, 24, C); p.px(24, 25, C);
+  p.px(33, 26, C); p.px(34, 27, C); p.px(33, 28, C);
+  p.px(41, 24, C); p.px(41, 25, C);
+  // ядро в груди — рой думает
+  p.px(32, 32, C); p.px(33, 32, C);
+  p.px(31, 33, C); p.px(34, 33, C);
+  p.px(32, 33, W); p.px(33, 33, W);
+  p.px(32, 34, C); p.px(33, 34, C);
+  if (fury || raise) {
+    p.px(24, 24, W); p.px(33, 27, W); p.px(32, 31, W); p.px(34, 34, W);
+  }
+
+  // ===== замёрзшая кровь и плоть на панцире =====
+  p.vline(46, 22, 7, RB); p.px(46, 30, RD); p.px(47, 32, RD); // потёк
+  p.vline(18, 26, 5, RB); p.px(18, 32, RD);
+  p.vline(28, 39, 4, RB);
+  p.rect(43, 30, 4, 3, RD); p.px(44, 30, RB); p.px(45, 31, FL); // пятно
+  p.rect(17, 34, 3, 2, RD); p.px(18, 34, FL);
+  p.rect(36, 22, 3, 2, RB); p.px(37, 22, FD); // вмёрзший кусок плоти
+
+  // ===== голова: ледяной череп с короной =====
+  p.rect(24, 1, 2, 3, K); p.px(24, 1, H);
+  p.rect(31, 0, 2, 4, K); p.px(31, 0, C); p.px(32, 1, H);
+  p.rect(38, 1, 2, 3, K); p.px(39, 1, H);
+  p.rect(22, 4, 20, 11, K);
+  p.rect(23, 5, 18, 9, B);
+  p.rect(23, 5, 5, 9, M);
+  p.rect(23, 5, 2, 9, H);
+  p.rect(37, 5, 4, 9, D);
+  p.rect(23, 5, 18, 2, H);
+  p.rect(25, 13, 14, 3, D); // челюстная плита
+  p.hline(25, 14, 14, K);
+  // глаза роя — гроздь светящихся точек (их много)
+  const eye = fury ? W : C;
+  p.px(27, 8, eye); p.px(28, 8, eye); p.px(27, 9, eye);
+  p.px(35, 8, eye); p.px(36, 8, eye); p.px(36, 9, eye);
+  if (fury) { p.px(28, 9, W); p.px(35, 9, W); p.px(31, 9, C); p.px(32, 10, C); }
+  p.px(31, 6, C); p.px(32, 7, C); // трещина со свечением
+
+  // ===== передние корни (несут тело) =====
+  const frontXs = [17, 20, 23, 26, 29, 32, 35, 38, 41, 44];
+  for (let i = 0; i < frontXs.length; i++) {
+    const inner = i >= 3 && i <= 6;
+    const len = (inner ? 20 : 16) + Math.sin(i * 1.9) * 2
+      - raise * 6 + (fury ? 3 : 0);
+    root(frontXs[i], 41, len, Math.sin(i * 2.7) * 0.25, 1,
+      2.2 + (fury ? 1.6 : 0), 0.5, phase + i * 1.3,
+      inner ? 2 : 1, ICE, i === 2 || i === 7); // корни в крови
+  }
 };
 
 const golemArt = defineArt({
@@ -741,14 +808,21 @@ const golemArt = defineArt({
   h: 64,
   palette: {},
   animations: {
-    idle: { fps: 2, frames: [drawGolem()] },
-    walk: { fps: 3, frames: [drawGolem({ step: 0 }), drawGolem({ step: 1 })] },
-    windup: { fps: 6, frames: [drawGolem({ raise: 1, eye: "#a9e8ff" })] },
+    // корни медленно извиваются, даже когда голем «стоит»
+    idle: { fps: 2, frames: [drawGolem(), drawGolem({ phase: 0.6 })] },
+    walk: { fps: 4, frames: [drawGolem({ phase: 0 }), drawGolem({ phase: 1.4 })] },
+    windup: {
+      fps: 6,
+      frames: [
+        drawGolem({ raise: 1 }),
+        drawGolem({ raise: 1, phase: 0.8 }),
+      ],
+    },
     attack: {
       fps: 8,
       frames: [
-        drawGolem({ raise: 1, eye: "#d6f6ff" }),
-        drawGolem({ raise: 0, eye: "#d6f6ff", step: 1 }),
+        drawGolem({ raise: 1, fury: 1 }),
+        drawGolem({ fury: 1, phase: 1.2 }),
       ],
     },
   },
