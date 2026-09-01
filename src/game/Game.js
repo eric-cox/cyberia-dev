@@ -118,7 +118,6 @@ export default class Game {
     });
     b.on("death", ({ time, kills }) => {
       this.sfx.death();
-      this.sfx.setWind(1);
       this.camera.addTrauma(0.9);
       this.store.recordRun({ time, kills, victory: false });
       this.hooks.onState && this.hooks.onState("dead");
@@ -149,9 +148,11 @@ export default class Game {
     this.camera.update(dt);
     this.renderer.render(this.sim, this.camera, dt);
 
-    // вой пурги усиливается с замерзанием
+    // вой пурги усиливается с замерзанием; вне забега
+    // (экран смерти, меню) плавно затухает до тишины
     if (this.sim.state === "playing")
       this.sfx.setWind(clamp(1 - this.sim.heat / this.diff.player.maxHeat, 0, 1));
+    else this.sfx.setWind(0);
 
     // снапшот для HUD — по таймеру (событийные — внутри wireEvents)
     this.snapTimer -= dt;

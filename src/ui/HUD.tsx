@@ -143,6 +143,12 @@ export const IcoHeart = ({ size = 12 }: { size?: number }) => (
     <path d="M1 2H2V3H1Z" fill="#ff8a94" />
   </svg>
 );
+export const IcoStar = ({ size = 12 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 8 8" shapeRendering="crispEdges" aria-hidden>
+    <path d="M3 0H5V2H7V3H8V5H7V6H5V8H3V6H1V5H0V3H1V2H3Z" fill="#6fd6ff" />
+    <path d="M3 2H5V3H6V5H5V6H3V5H2V3H3Z" fill="#d6f6ff" />
+  </svg>
+);
 
 // ---------- шкала с «хвостом» расхода ----------
 // disp догоняет значение быстро, ghost тянется медленно —
@@ -266,6 +272,73 @@ function VitalBar({
 const heatColor = (pct: number) =>
   pct > 50 ? "#ffb347" : pct > 25 ? "#ff8c42" : "#ff4757";
 
+// ---------- шкала опыта ----------
+// Заполняется по мере убийств; при новом уровне (xp сбрасывается)
+// быстро опустошается. Уровень вынесен в отдельный значок.
+function XpBar({ xp, xpNext, level }: { xp: number; xpNext: number; level: number }) {
+  const target = xpNext > 0 ? xp / xpNext : 0;
+  const [disp, setDisp] = useState(target);
+
+  useEffect(() => {
+    let raf = 0;
+    let last = performance.now();
+    const loop = (now: number) => {
+      const dt = Math.min(0.05, (now - last) / 1000);
+      last = now;
+      setDisp((prev) => {
+        // подъём плавный, сброс (уровень) — почти мгновенный
+        const speed = target > prev ? 6 : 14;
+        const nv = prev + (target - prev) * Math.min(1, dt * speed);
+        if (Math.abs(nv - prev) < 0.002) return prev;
+        return nv;
+      });
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, [target]);
+
+  const pct = Math.max(0, Math.min(100, disp * 100));
+
+  return (
+    <div>
+      <div className="flex items-baseline justify-between mb-1">
+        <span className="font-pixel text-[9px] tracking-wider flex items-center gap-1.5 text-[#6fd6ff]">
+          <IcoStar />
+          ОПЫТ
+        </span>
+        <span className="flex items-baseline gap-2">
+          <span className="font-pixel text-[8px] px-1.5 py-0.5 border border-[#2c4266] text-[#6fd6ff]">
+            УР.{level}
+          </span>
+          <span className="font-term font-bold text-sm tabular-nums text-[#e8f2ff]">
+            {xp}/{xpNext}
+          </span>
+        </span>
+      </div>
+      <div className="relative w-60 h-[12px] bg-[#0a0f1e] border-2 border-[#1d2c44] p-[2px]">
+        <div className="relative h-full overflow-hidden">
+          <div
+            className="absolute inset-y-0 left-0"
+            style={{
+              width: `${pct}%`,
+              background:
+                "repeating-linear-gradient(90deg, #6fd6ff 0px, #6fd6ff 6px, #6fd6ffcc 6px, #6fd6ffcc 8px)",
+            }}
+          />
+          <div
+            className="absolute inset-0"
+            style={{
+              background:
+                "repeating-linear-gradient(90deg, rgba(5,8,15,0) 0px, rgba(5,8,15,0) 7px, rgba(5,8,15,0.85) 7px, rgba(5,8,15,0.85) 8px)",
+            }}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ---------- HUD ----------
 function HUD({
   snap,
@@ -302,6 +375,7 @@ function HUD({
           lowAt={25}
           colorFor={heatColor}
         />
+        <XpBar xp={snap.xp} xpNext={snap.xpNext} level={snap.level} />
         <div className="flex items-center gap-4">
           <span className="flex items-center gap-1.5 font-term text-[12px] font-bold text-[#6fd6ff]">
             <IcoSnow /> ЗАЩИТА <b className="text-[#e8f2ff]">{snap.insulation}</b>
