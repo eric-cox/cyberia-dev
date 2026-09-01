@@ -16,7 +16,7 @@ export const def = {
   scale: 1,
   r: 6,
   h: 16, // высота арт-кадра (для полосы HP)
-  orbs: 1,
+  xp: 15,
   // слабый и мелкий — голос высокий
   voice: { freq: 900, wave: "sawtooth", v: 0.09, dur: 0.3, every: 3.2 },
 };

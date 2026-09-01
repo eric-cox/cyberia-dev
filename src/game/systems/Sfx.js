@@ -122,8 +122,10 @@ export class Sfx {
         delay: i * 0.07,
       });
   }
-  orb() {
-    this.tone({ f: 700, f2: 1050, t: 0.1, type: "triangle", v: 0.12 });
+  levelup() {
+    [523, 659, 784].forEach((f, i) =>
+      this.tone({ f, t: 0.12, type: "square", v: 0.12, delay: i * 0.08 })
+    );
   }
   // ---------- ГОЛОСА ВРАГОВ ----------
   // voice = { freq, wave, v, dur }.

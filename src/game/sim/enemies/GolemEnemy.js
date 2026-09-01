@@ -20,7 +20,7 @@ export const def = {
   scale: 4, // сетка 40×40 → 160 px, в 10 раз больше героя
   r: 26,
   h: 40,
-  orbs: 3,
+  xp: 150,
   // исполин — утробный рык 60 Гц
   voice: { freq: 60, wave: "sawtooth", v: 0.22, dur: 0.9, every: 5 },
 };

@@ -18,7 +18,6 @@ import {
   drawEnemy,
   drawPickup,
   drawTree,
-  drawOrbs,
 } from "./painters.js";
 
 export class Renderer {
@@ -95,13 +94,22 @@ export class Renderer {
         life: 0.55,
       })
     );
-    bus.on("orb", (e) => {
-      texts.add(e.x, e.y - 18, `+${e.hp} ЖИЗНИ`, "#7dff8a");
+    bus.on("xp", (e) => {
+      texts.add(e.x, e.y - 18, `+${e.amount} XP`, "#6fd6ff");
       particles.burst(e.x, e.y - 6, {
         n: 6,
-        colors: ["#7dff8a", "#3ecf5f", "#d8ffe0"],
+        colors: ["#6fd6ff", "#a9e8ff", "#d6f6ff"],
         speed: 50,
         life: 0.4,
+      });
+    });
+    bus.on("levelup", (e) => {
+      texts.add(e.x, e.y - 30, `УРОВЕНЬ ${e.level}`, "#ffb347");
+      particles.burst(e.x, e.y - 8, {
+        n: 22,
+        colors: ["#ffb347", "#ffd9ac", "#fff1c9", "#6fd6ff"],
+        speed: 110,
+        life: 0.7,
       });
     });
   }
@@ -178,7 +186,6 @@ export class Renderer {
       list.sort((a, b) => a.y - b.y);
       for (const it of list) it.d();
 
-      drawOrbs(ctx, sim.orbs.list);
       this.fx.update(dt);
       this.fx.draw(ctx);
       ctx.restore();

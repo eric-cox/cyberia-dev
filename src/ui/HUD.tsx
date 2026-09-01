@@ -71,6 +71,9 @@ export type Snapshot = {
   maxHp: number;
   hpRate: number;
   cause: string;
+  xp: number;
+  xpNext: number;
+  level: number;
   insulation: number;
   weapon: { id: string; name: string; dmg: number; rate: number; art: string | null } | null;
   equipped: EquippedMap;

@@ -95,17 +95,3 @@ export function drawTree(ctx, tr, t) {
   artSystem.draw(ctx, "tree", "idle", 0, 0, 0, {});
   ctx.restore();
 }
-
-// ---------- орбы жизни ----------
-export function drawOrbs(ctx, list) {
-  for (const o of list) {
-    const blink = o.life < 2 && Math.floor(o.life * 6) % 2 === 0;
-    if (blink) continue;
-    const idx = Math.floor(o.t * 6) % 2;
-    const bob = Math.sin(o.t * 4) * 1;
-    ctx.fillStyle = "rgba(62,207,95,0.22)";
-    ctx.fillRect((o.x - 4) | 0, (o.y - 4 + bob) | 0, 8, 8);
-    const frame = artSystem.frameCanvas("orb", "idle", idx);
-    if (frame) ctx.drawImage(frame, (o.x - 4) | 0, (o.y - 4 + bob) | 0);
-  }
-}

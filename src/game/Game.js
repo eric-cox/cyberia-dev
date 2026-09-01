@@ -91,7 +91,11 @@ export default class Game {
       this.hooks.onHurt && this.hooks.onHurt();
     });
     b.on("cold-tick", (e) => e.critical && this.sfx.crackle());
-    b.on("orb", () => this.sfx.orb());
+    b.on("levelup", () => {
+      this.sfx.levelup();
+      this.camera.addTrauma(0.35);
+      this.pushSnapshot();
+    });
     b.on("growl", (e) => {
       this.sfx.growl(e.voice, e.soft);
       // низкий рёв сотрясает экран (голем, носорог)
@@ -274,9 +278,12 @@ export default class Game {
         heat: Math.max(0, Math.ceil(sim.heat)),
         maxHeat: this.diff.player.maxHeat,
         hp: Math.max(0, Math.ceil(sim.hp)),
-        maxHp: this.diff.player.maxHp,
+        maxHp: sim.xp.maxHp,
         hpRate: Math.round(sim.hpRate * 10) / 10,
         cause: sim.deathCause,
+        xp: Math.floor(sim.xp.xp),
+        xpNext: sim.xp.xpForNextLevel(),
+        level: sim.xp.level,
         insulation: eq.insulation(),
         weapon: w
           ? { id: w.id, name: w.name, dmg: w.dmg, rate: w.rate, art: w.art }

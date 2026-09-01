@@ -16,7 +16,7 @@ import { generateWorld } from "../world/WorldGen.js";
 import { placeRunLoot, collectArtifact, itemStatText, itemColor } from "../loot/RunLoot.js";
 import { steer } from "./Movement.js";
 import { Player } from "./Player.js";
-import { Orbs } from "./Orbs.js";
+import { Experience } from "./Experience.js";
 import { populateEnemies } from "./enemies/EnemyFactory.js";
 
 export class Simulation {
@@ -33,14 +33,15 @@ export class Simulation {
     this.player = null;
     this.enemies = [];
     this.pickups = [];
-    this.orbs = new Orbs();
+    this.xp = new Experience(this.diff.xp, this.diff.player.maxHp);
 
     this.resetRunFields();
   }
 
   resetRunFields() {
     this.heat = this.diff.player.maxHeat;
-    this.hp = this.diff.player.maxHp;
+    this.xp.reset(); // опыт — прогрессия внутри забега
+    this.hp = this.xp.maxHp;
     this.hpRate = 0;
     this.time = 0;
     this.kills = 0;
@@ -57,7 +58,6 @@ export class Simulation {
     this.map = generateWorld(seed);
     this.enemies = [];
     this.pickups = [];
-    this.orbs = new Orbs();
     this.player = null;
     this.state = "menu";
   }
@@ -71,7 +71,6 @@ export class Simulation {
     this.player = new Player(c.x, c.y, this.diff.player.speed);
     this.pickups = placeRunLoot(this.map, rng, this.diff);
     this.enemies = populateEnemies(this.map, rng, this.diff);
-    this.orbs = new Orbs();
 
     this.resetRunFields();
     this.total = this.pickups.length;
@@ -113,7 +112,6 @@ export class Simulation {
     if (this.state !== "playing") return;
 
     this.updateEnemies(dt, p);
-    this.updateOrbs(dt, p);
     this.updatePickups(dt, p);
   }
 
@@ -150,12 +148,12 @@ export class Simulation {
         this.coldTickT = 1.4;
         this.bus.emit("cold-tick", { x: p.x, y: p.y, amount: 1, critical: false });
       }
-    } else if (this.heat > heatCfg.regenAbove && this.hp < this.diff.player.maxHp) {
+    } else if (this.heat > heatCfg.regenAbove && this.hp < this.xp.maxHp) {
       hpDelta = heatCfg.regen;
     }
 
     if (hpDelta !== 0) {
-      this.hp = clamp(this.hp + hpDelta * dt, 0, this.diff.player.maxHp);
+      this.hp = clamp(this.hp + hpDelta * dt, 0, this.xp.maxHp);
       this.hpRate = hpDelta;
       if (this.hp <= 0) {
         this.die(this.deathCause);
@@ -197,17 +195,6 @@ export class Simulation {
           this.moveEntity(b, nx, ny);
         }
       }
-  }
-
-  // ---------- орбы жизни ----------
-  // Убийство врага НЕ восстанавливает тепло — только жизнь.
-  // Тепло добывается артефактами-одеждой, а не бойней.
-  updateOrbs(dt, p) {
-    const hpGain = this.diff.heat.orbHp;
-    for (const o of this.orbs.update(dt, p)) {
-      this.hp = Math.min(this.diff.player.maxHp, this.hp + hpGain);
-      this.bus.emit("orb", { x: p.x, y: p.y, hp: hpGain });
-    }
   }
 
   // ---------- артефакты ----------
@@ -289,15 +276,28 @@ export class Simulation {
   killEnemy(e) {
     e.dead = true;
     this.kills++;
-    for (let i = 0; i < e.def.orbs; i++) this.orbs.spawn(e.x, e.y - 4);
     this.bus.emit("kill", { x: e.x, y: e.y, name: e.def.name, type: e.type, voice: e.def.voice });
+    this.awardXp(e);
+  }
+
+  // Опыт — единственная награда за убийство (см. Experience.js).
+  awardXp(e) {
+    const amount = e.def.xp || 0;
+    if (amount <= 0) return;
+    const levels = this.xp.addXp(amount);
+    this.bus.emit("xp", { x: e.x, y: e.y, amount });
+    for (const level of levels) {
+      // с уровнем растёт максимум жизни, и шкала сразу наполняется
+      this.hp = Math.min(this.xp.maxHp, this.hp + this.diff.xp.hpPerLevel);
+      this.bus.emit("levelup", { level, maxHp: this.xp.maxHp, x: e.x, y: e.y });
+    }
   }
 
   // Урон игроку (удары мутантов) — бьёт по жизни.
   damagePlayer(dmg, src) {
     if (this.state !== "playing") return;
     const p = this.player;
-    this.hp = clamp(this.hp - dmg, 0, this.diff.player.maxHp);
+    this.hp = clamp(this.hp - dmg, 0, this.xp.maxHp);
     this.deathCause = "beast";
     p.flash = 0.16;
     this.bus.emit("hurt", { x: p.x, y: p.y, dmg });

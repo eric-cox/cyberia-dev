@@ -718,34 +718,6 @@ const golemArt = defineArt({
   },
 });
 
-// ---------- орб жизни (процедурные кадры) ----------
-const orbArt = defineArt({
-  id: "orb",
-  w: 8,
-  h: 8,
-  palette: {},
-  animations: {
-    idle: {
-      fps: 6,
-      frames: [
-        (p) => {
-          p.disc(3, 3, 2, "#3ecf5f");
-          p.px(3, 2, "#d8ffe0");
-          p.px(1, 1, "#7dff8a");
-          p.px(5, 5, "#7dff8a");
-        },
-        (p) => {
-          p.disc(3, 3, 2, "#3ecf5f");
-          p.px(2, 3, "#d8ffe0");
-          p.px(5, 1, "#a8ffb0");
-          p.px(4, 5, "#7dff8a");
-          p.px(0, 4, "#7dff8a");
-        },
-      ],
-    },
-  },
-});
-
 export const ART_MODULES = [
   playerArt,
   wolfArt,
@@ -762,5 +734,4 @@ export const ART_MODULES = [
   mittensArt,
   knifeArt,
   crowbarArt,
-  orbArt,
 ];

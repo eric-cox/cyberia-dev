@@ -17,7 +17,7 @@ export const def = {
   scale: 0.6,
   r: 3,
   h: 11,
-  orbs: 1,
+  xp: 5,
   // самая маленькая и слабая — пищит на 12 000 Гц
   voice: { freq: 12000, wave: "sine", v: 0.05, dur: 0.14, every: 2.2 },
 };
