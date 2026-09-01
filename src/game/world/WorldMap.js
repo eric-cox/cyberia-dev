@@ -2,6 +2,9 @@
 //  world/WorldMap — ДАННЫЕ карты и пространственные запросы.
 //  Только тайлы + декор, без генерации и без отрисовки.
 //  Параметры ячеек (скорость/инерция) берёт из world/tiles.js.
+//  freeSpot() работает по индексу проходимых ячеек (bands) —
+//  расселение врагов/лута гарантированно попадает на остров,
+//  даже если запрошенное кольцо выходит за его границу.
 //
 //  Здесь будущее: чанки и on-demand загрузка реализуются
 //  ВНУТРИ этого класса (get/set начнут читать из чанков),
@@ -18,6 +21,7 @@ export class WorldMap {
     this.size = size; // тайлов по стороне
     this.tiles = tiles; // Uint8Array size*size
     this.decor = []; // { kind:"tree", x, y, sway }
+    this.bands = null; // индекс: band[радиус] → [индексы проходимых ячеек]
   }
 
   get widthPx() {
@@ -64,26 +68,77 @@ export class WorldMap {
     return false;
   }
 
-  // Свободная точка в кольце [minR..maxR] тайлов от центра
-  freeSpot(minR, maxR, rng) {
+  // ---------- индекс проходимости по радиальным поясам ----------
+  // band[r] = список индексов проходимых ячеек на расстоянии ~r
+  // от центра. Строится один раз после генерации; расселение
+  // врагов и лута выбирает точки ТОЛЬКО из реально проходимых
+  // ячеек — даже если остров заканчивается раньше кольца,
+  // всё расселяется по его кромке, а не сваливается в центр.
+  buildBands() {
     const C = this.size / 2;
-    for (let i = 0; i < 80; i++) {
-      const a = rng() * Math.PI * 2;
-      const rr = minR + rng() * (maxR - minR);
-      const tx = Math.round(C + Math.cos(a) * rr);
-      const ty = Math.round(C + Math.sin(a) * rr);
-      // снег и лёд годятся, скалы и деревья — нет
-      if (cellOf(this.get(tx, ty)).solid) continue;
-      let solidNear = false;
-      for (let y = -1; y <= 1 && !solidNear; y++)
-        for (let x = -1; x <= 1; x++)
-          if (cellOf(this.get(tx + x, ty + y)).solid) {
-            solidNear = true;
-            break;
-          }
-      if (!solidNear)
-        return { x: tx * TILE + TILE / 2, y: ty * TILE + TILE / 2 };
+    const bands = new Array(Math.ceil(Math.hypot(C, C)) + 1).fill(null);
+    for (let ty = 0; ty < this.size; ty++)
+      for (let tx = 0; tx < this.size; tx++) {
+        if (cellOf(this.get(tx, ty)).solid) continue;
+        const b = Math.round(Math.hypot(tx + 0.5 - C, ty + 0.5 - C));
+        (bands[b] || (bands[b] = [])).push(ty * this.size + tx);
+      }
+    this.bands = bands;
+  }
+
+  pxOf(cellIndex) {
+    const tx = cellIndex % this.size;
+    const ty = (cellIndex / this.size) | 0;
+    return { x: tx * TILE + TILE / 2, y: ty * TILE + TILE / 2 };
+  }
+
+  // Свободная точка в кольце [minR..maxR] тайлов от центра.
+  // Сначала ищет «чистое» место (3×3 без препятствий — для
+  // крупных зверей), затем соглашается на место вплотную к
+  // стене — там удобно устраивать засады.
+  freeSpot(minR, maxR, rng) {
+    if (!this.bands) this.buildBands();
+    const bMin = Math.max(0, Math.round(minR));
+    let bMax = Math.min(this.bands.length - 1, Math.round(maxR));
+    if (bMax < bMin) bMax = bMin;
+
+    const pick = (strict) => {
+      for (let tries = 0; tries < 24; tries++) {
+        const b = bMin + Math.floor(rng() * (bMax - bMin + 1));
+        const band = this.bands[b];
+        if (!band || !band.length) continue;
+        const i = band[Math.floor(rng() * band.length)];
+        if (strict && !this.clearAround(i)) continue;
+        return this.pxOf(i);
+      }
+      return null;
+    };
+
+    return (
+      pick(true) ||
+      pick(false) ||
+      this.inwardSpot(bMin - 1, rng) ||
+      this.center
+    );
+  }
+
+  // 3×3 вокруг ячейки без твёрдых препятствий
+  clearAround(cellIndex) {
+    const tx = cellIndex % this.size;
+    const ty = (cellIndex / this.size) | 0;
+    for (let y = -1; y <= 1; y++)
+      for (let x = -1; x <= 1; x++)
+        if (cellOf(this.get(tx + x, ty + y)).solid) return false;
+    return true;
+  }
+
+  // Последний шанс: ближайший непустой пояс ВНУТРИ от запрошенного
+  inwardSpot(fromBand, rng) {
+    for (let b = fromBand; b >= 0; b--) {
+      const band = this.bands[b];
+      if (band && band.length)
+        return this.pxOf(band[Math.floor(rng() * band.length)]);
     }
-    return { x: C * TILE, y: C * TILE };
+    return null;
   }
 }

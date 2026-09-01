@@ -18,8 +18,6 @@ import { lerp } from "../core/Utils.js";
 import { mulberry32 } from "../core/Rng.js";
 import { WorldMap } from "./WorldMap.js";
 
-const WALL_MARK = 255; // «уже попытано» — станет скалой
-
 function makeNoise(rng) {
   const size = 64;
   const g = new Float32Array(size * size);
@@ -74,20 +72,21 @@ function carveIsland(map, rng, fractal) {
       const ny = cy + dy;
       if (nx < 1 || ny < 1 || nx >= size - 1 || ny >= size - 1) continue;
       const i2 = idx(nx, ny);
-      if (carved[i2] === 1 || map.tiles[i2] === WALL_MARK) continue;
+      if (carved[i2] === 1) continue;
 
       const ddx = nx - C;
       const ddy = ny - C;
       const dist = Math.hypot(ddx, ddy);
       const d = dist / limitR(Math.atan2(ddy, ddx));
-      // p = 1 в ядре (d ≤ 0.6), далее падает к границе
-      const p = d <= 0.6 ? 1 : Math.max(0.02, 1 - (d - 0.6) / 0.55);
+      // p = 1 в ядре (d ≤ 0.55), далее падает к границе.
+      // Неудача НЕ блокирует ячейку навсегда: её может прорастить
+      // другой сосед — остров доходит до расчётного радиуса,
+      // а граница остаётся рваной (фьорды, тупики).
+      const p = d <= 0.55 ? 1 : Math.max(0.02, 1 - (d - 0.55) / 0.5);
 
       if (rng() < p) {
         carved[i2] = 1;
         queue.push([nx, ny]);
-      } else {
-        map.tiles[i2] = WALL_MARK; // стена навсегда
       }
     }
   }
@@ -200,6 +199,10 @@ export function generateWorld(seed) {
       const t = map.get(C + x, C + y);
       if (t === T.ROCK || t === T.TREE) map.set(C + x, C + y, T.SNOW);
     }
+
+  // индекс проходимых ячеек по радиальным поясам —
+  // по нему расселяются враги и артефакты
+  map.buildBands();
 
   return map;
 }
