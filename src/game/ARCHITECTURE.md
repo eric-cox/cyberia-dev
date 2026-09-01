@@ -66,7 +66,18 @@
    (`windupTime / strikeLunge / duringStrike / windupVoice / …`) либо собственным
    `update()` (рытьё под снегом, телепорт, стрельба — что угодно).
 2. Добавить строку в `sim/enemies/registry.js`.
-3. При желании — правила расселения в `EnemyFactory.js` и арт в `art/modules.js`.
+3. Прописать диапазоны количества в `systems/Difficulty.js`
+   (`enemies.types.<тип> = { center: [min, max], edge: [min, max] }`)
+   и арт в `art/modules.js`. Саму фабрику трогать не нужно.
+
+### Расселение врагов (конфиг, не код)
+`systems/Difficulty.js → enemies`:
+- `zones` — два кольца тайлов от центра: `center` и `edge`;
+- `types.<тип>.center / .edge` — диапазоны `[min, max]`: точное число
+  разыгрывается каждый забег; **дробная часть = вероятность**
+  (голем `[0.3, 0.3]` — один с шансом 30%; `[0, 0]` — никогда);
+- `edgeMul` — «полярный множитель»: звери у края крупнее и сильнее
+  (кроме мышей). Исполняет конфиг `sim/enemies/EnemyFactory.js`.
 
 ### Голоса врагов
 У каждого вида в `def.voice = { freq, wave, v, dur, every }`. Правило мира:
