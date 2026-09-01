@@ -53,17 +53,41 @@ export function paintTerrain(map) {
       }
 
       if (t === T.ROCK) {
-        const o = Math.floor(rng() * 3);
-        ctx.fillStyle = "#3d4d6b";
-        ctx.fillRect(px + 1, py + 2, 14, 13);
-        ctx.fillStyle = "#55688a";
-        ctx.fillRect(px + 1 + o, py + 1, 13 - o, 11);
-        ctx.fillStyle = "#7d92b5";
-        ctx.fillRect(px + 2 + o, py + 2, 6, 3);
-        ctx.fillStyle = "#e8f2ff";
-        ctx.fillRect(px + 2, py + 1, 9 - o, 2);
-        ctx.fillStyle = "#2f3d54";
-        ctx.fillRect(px + 2, py + 13, 12, 2);
+        // сплошная скальная масса — монолитная стена;
+        // одиночные камни — валуны
+        const sealed =
+          map.get(tx, ty - 1) === T.ROCK &&
+          map.get(tx, ty + 1) === T.ROCK &&
+          map.get(tx - 1, ty) === T.ROCK &&
+          map.get(tx + 1, ty) === T.ROCK;
+        if (sealed) {
+          const o = Math.floor(rng() * 3);
+          ctx.fillStyle = "#2c3a52";
+          ctx.fillRect(px, py, TILE, TILE);
+          ctx.fillStyle = "#3d4d6b";
+          ctx.fillRect(px + 1, py + 1, TILE - 2, TILE - 2);
+          ctx.fillStyle = "#55688a";
+          ctx.fillRect(px + 2, py + 2 + (o % 2), 5, 4);
+          ctx.fillStyle = "#232e42";
+          ctx.fillRect(px + 2, py + 12, TILE - 4, 3);
+          // редкие снежные прожилки в толще стены
+          if (rng() < 0.3) {
+            ctx.fillStyle = "#c9d8ec";
+            ctx.fillRect(px + 2 + o, py + 6, 4 + o, 1);
+          }
+        } else {
+          const o = Math.floor(rng() * 3);
+          ctx.fillStyle = "#3d4d6b";
+          ctx.fillRect(px + 1, py + 2, 14, 13);
+          ctx.fillStyle = "#55688a";
+          ctx.fillRect(px + 1 + o, py + 1, 13 - o, 11);
+          ctx.fillStyle = "#7d92b5";
+          ctx.fillRect(px + 2 + o, py + 2, 6, 3);
+          ctx.fillStyle = "#e8f2ff";
+          ctx.fillRect(px + 2, py + 1, 9 - o, 2);
+          ctx.fillStyle = "#2f3d54";
+          ctx.fillRect(px + 2, py + 13, 12, 2);
+        }
       } else if (t === T.TREE) {
         // тень дерева (крона рисуется спрайтом в проходе сущностей)
         ctx.fillStyle = "rgba(10,15,30,0.32)";
