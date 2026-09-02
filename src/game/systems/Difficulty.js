@@ -43,7 +43,7 @@ const PROFILES = {
       // Дробные значения = вероятность: голем [0.3, 0.3] —
       // ровно один, и только с шансом 30%.
       types: {
-        mouse: { center: [8, 9], edge: [16, 17] },
+        rat: { center: [8, 9], edge: [16, 17] },
         wolf: { center: [6, 7], edge: [4, 5] },
         boar: { center: [3, 4], edge: [5, 6] },
         brute: { center: [0, 1], edge: [3, 4] },

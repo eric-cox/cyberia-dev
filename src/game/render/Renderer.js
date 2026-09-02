@@ -223,7 +223,7 @@ export class Renderer {
         ctx.fillStyle = "#d6f6ff";
         ctx.fillRect((e.x / TILE) * scale - 1, (e.y / TILE) * scale - 1, 4, 4);
       } else {
-        ctx.fillStyle = e.type === "mouse" ? "#f2a0b0" : "#ff4757";
+        ctx.fillStyle = e.type === "rat" ? "#f2a0b0" : "#ff4757";
         ctx.fillRect((e.x / TILE) * scale, (e.y / TILE) * scale, 2, 2);
       }
     }

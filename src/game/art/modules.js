@@ -621,47 +621,52 @@ const rhinoArt = defineArt({
   },
 });
 
-// ---------- мышь-мутант (крошечная, пищит на 12 кГц) ----------
-// Сетка 10×8, единый пиксель (scale=1).
-const PAL_MOUSE = { k: "#1c2430", m: "#b9c3d6", p: "#f2a0b0", e: "#10151f" };
-const drawMouse = ({ step = 0 } = {}) => (p) => {
-  const K = "#1c2430", M = "#b9c3d6", P = "#f2a0b0", E = "#10151f";
-  // уши
-  p.rect(1, 0, 2, 2, K);
-  p.rect(6, 0, 2, 2, K);
-  p.px(1, 0, P);
-  p.px(7, 0, P);
-  // голова + тело
-  p.rect(1, 2, 7, 4, K);
-  p.rect(2, 2, 5, 3, M);
-  p.rect(2, 2, 5, 1, "#d4dcea");
-  // глаза
-  p.px(3, 3, E);
-  p.px(5, 3, E);
-  // розовый нос
-  p.px(4, 4, P);
-  // лапки (семенит)
-  if (step) {
-    p.px(2, 6, K);
-    p.px(6, 6, K);
-  } else {
-    p.px(3, 6, K);
-    p.px(5, 6, K);
-  }
-  // хвост
-  p.px(8, 3, K);
-  p.px(9, 2, P);
+// ---------- Крыса (оголодавшая, шерсть клочками, проплешины) ----------
+// Сетка 16×10, единый пиксель (scale=1). Одна из немногих выживших:
+// обычная крыса, которую голод гонит на человека. Радиация оставила
+// клочковатую шерсть и розовые рубцовые проплешины (P), длинный
+// голый хвост (p). См. data/bestiary.js.
+const PAL_RAT = {
+  k: "#1c2430", // контур
+  m: "#97a3b3", // грязно-серая шерсть
+  P: "#d08396", // розовая рубцовая проплешина
+  p: "#e89aa8", // розовое ухо / нос / хвост
+  e: "#10151f", // глаз
 };
-const mouseArt = defineArt({
-  id: "mouse",
-  w: 10,
-  h: 8,
-  palette: PAL_MOUSE,
+const RAT_A = [
+  "................",
+  "...kk...........", // ухо
+  "..kppk..........", // розовое внутри уха
+  "..kmmmk.kk......", // голова + клочок шерсти
+  ".kmmmmkkmmk.....", // холка, взъерошенная
+  ".kEmmmmmmmmmk...", // глаз
+  "kPmPmmmmmmmmmmpk".slice(0, 16), // нос, проплешина, хвост
+  ".kmmmmPmmmmmmpk.", // проплешина на боку
+  ".kmmmmmmmmmmmpk.", // брюхо, хвост
+  "..kk.kkk.kkk.pk.", // лапы, хвост
+];
+const RAT_B = [
+  "................",
+  "...kk...........",
+  "..kppk..........",
+  "..kmmmk.kk......",
+  ".kmmmmkkmmk.....",
+  ".kEmmmmmmmmmk...",
+  "kPmPmmmmmmmmmmpk".slice(0, 16),
+  ".kmmmmPmmmmmmpk.",
+  ".kmmmmmmmmmmmpk.",
+  ".kk..kkk..kk.pk.", // лапы в другой фазе (семенит)
+];
+const ratArt = defineArt({
+  id: "rat",
+  w: 16,
+  h: 10,
+  palette: PAL_RAT,
   animations: {
-    idle: { fps: 3, frames: [drawMouse({ step: 0 }), drawMouse({ step: 1 })] },
-    walk: { fps: 14, frames: [drawMouse({ step: 0 }), drawMouse({ step: 1 })] },
-    windup: { fps: 6, frames: [drawMouse({ step: 1 })] },
-    attack: { fps: 10, frames: [drawMouse({ step: 1 }), drawMouse({ step: 0 })] },
+    idle: { fps: 3, frames: [RAT_A, RAT_B] },
+    walk: { fps: 14, frames: [RAT_A, RAT_B] },
+    windup: { fps: 6, frames: [RAT_B] },
+    attack: { fps: 10, frames: [RAT_B, RAT_A] },
   },
 });
 
@@ -834,7 +839,7 @@ export const ART_MODULES = [
   boarArt,
   bruteArt,
   rhinoArt,
-  mouseArt,
+  ratArt,
   golemArt,
   treeArt,
   hatArt,

@@ -18,7 +18,7 @@ export const def = {
   dmg: 4,
   cd: 1.0,
   r: 4,
-  h: 9, // сетка 14×9, scale=1
+  h: 10, // сетка 16×10, scale=1
   xp: 5,
   // самая маленькая и слабая — пищит на 12 000 Гц
   voice: { freq: 12000, wave: "sine", v: 0.05, dur: 0.14, every: 2.2 },
