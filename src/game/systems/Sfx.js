@@ -165,6 +165,30 @@ export class Sfx {
       this.tone({ f, t: 0.12, type: "square", v: 0.12, delay: i * 0.08 })
     );
   }
+  // ---------- дробовик ----------
+  shotgun() {
+    // громкий: низкий удар + треск дроби + басовая волна
+    this.noise({ t: 0.2, v: 0.5, f: 800, type: "lowpass" });
+    this.noise({ t: 0.09, v: 0.3, f: 2800, type: "highpass" });
+    this.tone({ f: 130, f2: 40, t: 0.22, type: "square", v: 0.3 });
+  }
+  reloadStart() {
+    this.noise({ t: 0.06, v: 0.12, f: 1200, type: "bandpass" });
+    this.tone({ f: 300, f2: 180, t: 0.06, type: "square", v: 0.06 });
+  }
+  reloadDone() {
+    // два щелчка — патроны встали
+    this.tone({ f: 700, t: 0.04, type: "square", v: 0.08 });
+    this.tone({ f: 900, t: 0.04, type: "square", v: 0.08, delay: 0.09 });
+  }
+  dryfire() {
+    // пустой щелчок
+    this.tone({ f: 400, f2: 250, t: 0.05, type: "square", v: 0.06 });
+  }
+  ammoPickup() {
+    this.tone({ f: 620, t: 0.06, type: "triangle", v: 0.1 });
+    this.tone({ f: 830, t: 0.06, type: "triangle", v: 0.1, delay: 0.05 });
+  }
   // ---------- ГОЛОСА ВРАГОВ ----------
   // voice = { freq, wave, v, dur }.
   // Высокие freq (≥4000) — тонкий писк с быстрым вибрато

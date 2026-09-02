@@ -8,7 +8,7 @@ import { artSystem } from "../art/pixel.js";
 import { TIER_COLORS } from "../data/items.js";
 
 // ---------- игрок ----------
-export function drawPlayer(ctx, p) {
+export function drawPlayer(ctx, p, weapon) {
   const anim = p.attackAnimTime > 0 ? "attack" : p.moving ? "walk" : "idle";
   const idx = artSystem.animIndex("player", anim, p.animT);
   const lx = Math.cos(p.face) * p.lunge * 4;
@@ -19,6 +19,46 @@ export function drawPlayer(ctx, p) {
     flip: Math.cos(p.face) < 0,
     white: p.flash > 0,
   });
+  // дробовик в руке, повёрнут по направлению прицела
+  if (weapon && weapon.kind === "shotgun") drawShotgunInHand(ctx, p);
+}
+
+// Дробовик рисуется отдельным спрайтом, повёрнутым на p.face:
+// приклад у плеча, ствол вперёд. При взгляде влево отражаем,
+// чтобы оружие не переворачивалось «вверх ногами».
+function drawShotgunInHand(ctx, p) {
+  const frame = artSystem.frameCanvas("shotgun", "idle", 0);
+  if (!frame) return;
+  const bob = Math.sin(p.animT * 9) * (p.moving ? 0.8 : 0);
+  ctx.save();
+  ctx.translate(Math.round(p.x), Math.round(p.y - 8 + bob));
+  ctx.rotate(p.face);
+  if (Math.cos(p.face) < 0) ctx.scale(1, -1);
+  // точка хвата — цевьё (в арте ~x=10): приклад уходит к телу
+  ctx.drawImage(frame, -10, -3);
+  ctx.restore();
+}
+
+// ---------- летящая дробь ----------
+export function drawPellets(ctx, pellets) {
+  for (const pl of pellets) {
+    // короткий след (размаз по скорости)
+    ctx.fillStyle = "rgba(255,200,120,0.4)";
+    ctx.fillRect((pl.x - pl.vx * 0.012) | 0, (pl.y - pl.vy * 0.012) | 0, 2, 2);
+    // сама дробинка
+    ctx.fillStyle = "#ffd98a";
+    ctx.fillRect(pl.x | 0, pl.y | 0, 2, 2);
+  }
+}
+
+// ---------- россыпь патронов ----------
+export function drawAmmoPickup(ctx, ap) {
+  const bob = Math.sin(ap.t * 2.6) * 1.2;
+  ctx.fillStyle = "rgba(10,15,30,0.25)";
+  ctx.fillRect(Math.round(ap.x - 4), Math.round(ap.y - 1), 8, 3);
+  artSystem.draw(ctx, "shell", "idle", 0, ap.x, ap.y - 1 + bob, {});
+  // второй патрон рядом — видно, что это россыпь
+  artSystem.draw(ctx, "shell", "idle", 0, ap.x + 5, ap.y + bob, {});
 }
 
 // замёрз: повален и припорошен

@@ -18,6 +18,8 @@ import {
   drawEnemy,
   drawPickup,
   drawTree,
+  drawPellets,
+  drawAmmoPickup,
 } from "./painters.js";
 
 export class Renderer {
@@ -112,6 +114,32 @@ export class Renderer {
         life: 0.7,
       });
     });
+    // --- дробовик ---
+    bus.on("shot", (e) => {
+      this.fx.flashes.add(e.x, e.y, e.angle); // вспышка у дула
+      this.fx.particles.shell(e.x - Math.cos(e.angle) * 6, e.y - 4); // гильза
+      // пороховой дым
+      particles.burst(e.x, e.y, {
+        n: 8,
+        colors: ["#9aa7b8", "#6b7787", "#c8d2de"],
+        speed: 40,
+        life: 0.4,
+      });
+    });
+    bus.on("blood", (e) => this.fx.particles.gore(e.x, e.y, e.angle));
+    bus.on("spark", (e) => this.fx.particles.spark(e.x, e.y));
+    bus.on("ammo", (e) => {
+      texts.add(e.x, e.y - 12, `+${e.amount} ПАТРОНОВ`, "#d9b54a");
+      particles.burst(e.x, e.y - 4, {
+        n: 8,
+        colors: ["#d9b54a", "#c23b3b", "#e8f2ff"],
+        speed: 50,
+        life: 0.4,
+      });
+    });
+    bus.on("reload-done", (e) => {
+      texts.add(this._lastPlayerX || 0, (this._lastPlayerY || 0) - 20, "ЗАРЯЖЕНО", "#7dff8a");
+    });
   }
 
   attachMinimap(el) {
@@ -173,18 +201,28 @@ export class Renderer {
         list.push({ y: tr.y, d: () => drawTree(ctx, tr, this.time) });
       for (const pk of sim.pickups)
         list.push({ y: pk.y, d: () => drawPickup(ctx, pk) });
+      for (const ap of sim.ammoPickups)
+        list.push({ y: ap.y, d: () => drawAmmoPickup(ctx, ap) });
       for (const e of sim.enemies)
         list.push({ y: e.y, d: () => drawEnemy(ctx, e) });
       if (sim.player && sim.state !== "menu") {
         const p = sim.player;
+        this._lastPlayerX = p.x;
+        this._lastPlayerY = p.y;
+        const weapon = sim.equipment.weapon();
         list.push({
           y: p.y,
           d: () =>
-            sim.state === "dead" ? drawDeadPlayer(ctx, p) : drawPlayer(ctx, p),
+            sim.state === "dead"
+              ? drawDeadPlayer(ctx, p)
+              : drawPlayer(ctx, p, weapon),
         });
       }
       list.sort((a, b) => a.y - b.y);
       for (const it of list) it.d();
+
+      // дробь — поверх сущностей (летит быстро)
+      drawPellets(ctx, sim.pellets);
 
       this.fx.update(dt);
       this.fx.draw(ctx);

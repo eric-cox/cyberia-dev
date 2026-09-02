@@ -83,6 +83,8 @@ export class Input {
       aimAngle: null,
       toggleInventory: this.wasPressed("Tab", "KeyI"),
       toggleMute: this.wasPressed("KeyM"),
+      // KeyR: в бою — перезарядка дробовика, на экране смерти — рестарт
+      reload: this.wasPressed("KeyR"),
       restart: this.wasPressed("KeyR"),
       enter: this.wasPressed("Enter", "Space"),
       mouseX: this.mouse.x,

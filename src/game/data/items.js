@@ -2,6 +2,8 @@
 //  РЕЕСТР АРТЕФАКТОВ
 //  Одежда: cold — защита от холода (снижает потерю тепла).
 //  Оружие: dmg / rate (ударов в сек) / range (дальность, px).
+//    kind: "shotgun" — стрелковое; pellets/pelletDmg/pelletSpeed/
+//    spread описывают пучок дроби (см. sim/Pellet.js).
 // ============================================================
 
 export const SLOT_NAMES = {
@@ -41,12 +43,26 @@ export const ITEMS = {
   knife2: { id: "knife2", slot: "weapon", name: "Охотничий нож", tier: 2, dmg: 15, rate: 2.6, range: 22, art: "it_knife" },
   crowbar1: { id: "crowbar1", slot: "weapon", name: "Лом", tier: 1, dmg: 20, rate: 1.35, range: 26, art: "it_crowbar" },
   crowbar3: { id: "crowbar3", slot: "weapon", name: "Монтировка «Гвоздь»", tier: 3, dmg: 36, rate: 1.15, range: 28, art: "it_crowbar" },
+  // --- дробовик: 2 патрона в стволе, перезарядка 2 с, пучок дроби ---
+  shotgun3: {
+    id: "shotgun3", slot: "weapon", name: "Дробовик «Гроза»", tier: 3,
+    kind: "shotgun",
+    dmg: 9, // за дробинку (для сравнения в схроне)
+    rate: 1.4, // выстрелов в сек (два подряд без перезарядки)
+    range: 210,
+    pellets: 7, // дробинок в пучке
+    pelletDmg: 9, // урон каждой дробинки
+    pelletSpeed: 380,
+    spread: 0.42, // разлёт пучка, рад
+    art: "it_shotgun",
+  },
 };
 
 // Артефакты, раскладываемые по карте каждый забег
 export const RUN_LOOT = [
   "hat1", "hat3", "jacket2", "jacket3", "pants1", "pants3", "boots1",
   "boots3", "mittens1", "mittens2", "knife1", "knife2", "crowbar1", "crowbar3",
+  "shotgun3",
 ];
 
 export const TIER_COLORS = ["#9fb6cc", "#9fb6cc", "#6fd6ff", "#ffb347"];

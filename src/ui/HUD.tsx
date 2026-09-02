@@ -85,6 +85,13 @@ export type Snapshot = {
   muted: boolean;
   stats: { bestTime: number; totalKills: number; runs: number; victories: number; inv: string[] };
   wind: { angle: number; strength: number; blizzard: boolean };
+  shotgun: {
+    tube: number;
+    tubeMax: number;
+    ammo: number;
+    reloading: boolean;
+    reloadProgress: number;
+  } | null;
 };
 export type Toast = { id: number; kind: string; text: string; tier?: number };
 
@@ -390,6 +397,47 @@ function WindVane({
   );
 }
 
+// ---------- дробовик: ствол (2 патрона) + запас + перезарядка ----------
+function ShotgunAmmo({
+  s,
+}: {
+  s: { tube: number; tubeMax: number; ammo: number; reloading: boolean; reloadProgress: number };
+}) {
+  return (
+    <div className="mt-2 pt-2 border-t-2 border-[#16233c]">
+      <div className="flex items-center gap-2">
+        {/* патроны в стволе */}
+        <span className="flex gap-1">
+          {Array.from({ length: s.tubeMax }).map((_, i) => (
+            <span
+              key={i}
+              className="inline-block w-[6px] h-[12px]"
+              style={{
+                background: i < s.tube ? "#c23b3b" : "#1d2c44",
+                boxShadow: i < s.tube ? "inset 0 -3px 0 #d9b54a" : "none",
+              }}
+            />
+          ))}
+        </span>
+        <span className="font-term text-[11px] font-bold text-[#d9b54a] tabular-nums">
+          +{s.ammo}
+        </span>
+        {s.reloading && (
+          <span className="font-pixel text-[7px] text-[#7dff8a] blink-soft">ЗАРЯДКА</span>
+        )}
+      </div>
+      {s.reloading && (
+        <div className="w-full h-[5px] bg-[#0a0f1e] border border-[#1d2c44] mt-1.5">
+          <div
+            className="h-full bg-[#7dff8a]"
+            style={{ width: `${Math.round(s.reloadProgress * 100)}%` }}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ---------- HUD ----------
 function HUD({
   snap,
@@ -481,6 +529,10 @@ function HUD({
             </div>
           </div>
         </div>
+
+        {/* дробовик: патроны в стволе + запас + перезарядка */}
+        {snap.shotgun && <ShotgunAmmo s={snap.shotgun} />}
+
         <div className="font-term text-[9px] text-[#4d6a8f] mt-1.5">
           смена оружия — в снаряжении между играми
         </div>

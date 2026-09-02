@@ -22,7 +22,7 @@ import { Sfx } from "./systems/Sfx.js";
 import { SaveStore } from "./systems/SaveStore.js";
 import { getDifficulty } from "./systems/Difficulty.js";
 import { Equipment } from "./loot/Equipment.js";
-import { Simulation } from "./sim/Simulation.js";
+import { Simulation, SHOTGUN_TUBE, SHOTGUN_RELOAD } from "./sim/Simulation.js";
 import { Renderer } from "./render/Renderer.js";
 import { artSystem } from "./art/pixel.js";
 import { ART_MODULES } from "./art/modules.js";
@@ -117,6 +117,22 @@ export default class Game {
         kind: "sys",
         text: active ? "НАДВИГАЕТСЯ МЕТЕЛЬ" : "МЕТЕЛЬ УТИХЛА",
       });
+    });
+    // --- дробовик ---
+    b.on("shot", () => {
+      this.sfx.shotgun();
+      this.camera.addTrauma(0.4); // отдача сотрясает экран
+      this.pushSnapshot(); // обновить счётчик патронов в HUD
+    });
+    b.on("reload-start", () => this.sfx.reloadStart());
+    b.on("reload-done", () => {
+      this.sfx.reloadDone();
+      this.pushSnapshot();
+    });
+    b.on("dryfire", () => this.sfx.dryfire());
+    b.on("ammo", () => {
+      this.sfx.ammoPickup();
+      this.pushSnapshot();
     });
     b.on("pickup", (e) => {
       this.sfx.pickup(e.item.tier);
@@ -301,8 +317,19 @@ export default class Game {
         level: sim.xp.level,
         insulation: eq.insulation(),
         weapon: w
-          ? { id: w.id, name: w.name, dmg: w.dmg, rate: w.rate, art: w.art }
+          ? { id: w.id, name: w.name, dmg: w.dmg, rate: w.rate, art: w.art, kind: w.kind || "melee" }
           : null,
+        // --- дробовик: патроны и перезарядка ---
+        shotgun:
+          w && w.kind === "shotgun" && sim.player
+            ? {
+                tube: sim.player.tube,
+                tubeMax: SHOTGUN_TUBE,
+                ammo: sim.player.ammo,
+                reloading: sim.player.reloadT > 0,
+                reloadProgress: sim.player.reloadT > 0 ? 1 - sim.player.reloadT / SHOTGUN_RELOAD : 0,
+              }
+            : null,
         kills: sim.kills,
         time: sim.time,
         found: sim.foundThisRun,

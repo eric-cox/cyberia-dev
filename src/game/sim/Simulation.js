@@ -13,11 +13,22 @@
 import { clamp } from "../core/Utils.js";
 import { mulberry32 } from "../core/Rng.js";
 import { generateWorld } from "../world/WorldGen.js";
-import { placeRunLoot, collectArtifact, itemStatText, itemColor } from "../loot/RunLoot.js";
+import {
+  placeRunLoot,
+  placeAmmo,
+  collectArtifact,
+  itemStatText,
+  itemColor,
+} from "../loot/RunLoot.js";
 import { steer } from "./Movement.js";
 import { Player } from "./Player.js";
 import { Experience } from "./Experience.js";
+import { Pellet } from "./Pellet.js";
 import { populateEnemies } from "./enemies/EnemyFactory.js";
+
+// дробовик: время перезарядки и ёмкость ствола
+export const SHOTGUN_RELOAD = 2;
+export const SHOTGUN_TUBE = 2;
 
 export class Simulation {
   // bus — шина событий; store/equipment — схрон и экипировка;
@@ -33,6 +44,8 @@ export class Simulation {
     this.player = null;
     this.enemies = [];
     this.pickups = [];
+    this.pellets = []; // летящая дробь
+    this.ammoPickups = []; // россыпи патронов
     this.xp = new Experience(this.diff.xp, this.diff.player.maxHp);
 
     this.resetRunFields();
@@ -58,6 +71,8 @@ export class Simulation {
     this.map = generateWorld(seed);
     this.enemies = [];
     this.pickups = [];
+    this.pellets = [];
+    this.ammoPickups = [];
     this.player = null;
     this.state = "menu";
   }
@@ -70,9 +85,16 @@ export class Simulation {
 
     this.player = new Player(c.x, c.y, this.diff.player.speed);
     this.pickups = placeRunLoot(this.map, rng, this.diff);
+    this.ammoPickups = placeAmmo(this.map, rng, this.diff);
     this.enemies = populateEnemies(this.map, rng, this.diff);
+    this.pellets = [];
 
     this.resetRunFields();
+    // если вышел с дробовиком в руке — стартовый запас патронов
+    if (this.equipment.weapon().kind === "shotgun") {
+      this.player.tube = SHOTGUN_TUBE;
+      this.player.ammo = 2;
+    }
     this.total = this.pickups.length;
     this.state = "playing";
     this.bus.emit("run-start", { map: this.map });
@@ -102,6 +124,19 @@ export class Simulation {
     if (cmd.attackMelee) this.doAttack(p.face);
     if (cmd.attackAim && cmd.aimAngle != null) this.doAttack(cmd.aimAngle);
 
+    // --- перезарядка дробовика (ручная — KeyR) ---
+    if (cmd.reload) this.startReload();
+    if (p.reloadT > 0) {
+      p.reloadT -= dt;
+      if (p.reloadT <= 0) {
+        p.reloadT = 0;
+        const load = Math.min(SHOTGUN_TUBE - p.tube, p.ammo);
+        p.tube += load;
+        p.ammo -= load;
+        this.bus.emit("reload-done", { tube: p.tube, ammo: p.ammo });
+      }
+    }
+
     // таймеры игрока
     p.attackCooldown = Math.max(0, p.attackCooldown - dt);
     p.attackAnimTime = Math.max(0, p.attackAnimTime - dt);
@@ -113,6 +148,8 @@ export class Simulation {
 
     this.updateEnemies(dt, p);
     this.updatePickups(dt, p);
+    this.updatePellets(dt);
+    this.updateAmmoPickups(dt, p);
   }
 
   // ---------- холод и жизнь ----------
@@ -237,9 +274,99 @@ export class Simulation {
   }
 
   // ---------- бой ----------
+  doAttack(angle) {
+    const weapon = this.equipment.weapon();
+    if (weapon.kind === "shotgun") {
+      this.fireShotgun(angle);
+      return;
+    }
+    this.meleeAttack(angle);
+  }
+
+  // Выстрел дробовиком: 2 патрона в стволе можно отстрелять подряд,
+  // затем перезарядка. Пучок дроби (см. Pellet.js).
+  fireShotgun(angle) {
+    const p = this.player;
+    if (p.reloadT > 0) return; // перезаряжается
+    if (p.attackCooldown > 0) return;
+    if (p.tube <= 0) {
+      this.startReload(); // пусто: заряжаем или щёлкаем впустую
+      return;
+    }
+    const w = this.equipment.weapon();
+    p.tube--;
+    p.attackCooldown = 1 / w.rate;
+    p.attackAnimTime = 0.22;
+    p.face = angle;
+    p.lunge = 1.3;
+    // отдача толкает игрока назад (на льду — ощутимо)
+    p.vx -= Math.cos(angle) * 70;
+    p.vy -= Math.sin(angle) * 70;
+    const ox = p.x + Math.cos(angle) * 14;
+    const oy = p.y - 6 + Math.sin(angle) * 14;
+    this.bus.emit("shot", { x: ox, y: oy, angle, range: w.range, tube: p.tube });
+    for (let i = 0; i < w.pellets; i++)
+      this.pellets.push(new Pellet(ox, oy, angle, w.pelletSpeed, w.pelletDmg, w.spread));
+    // ствол пуст — автоматически заряжаем, если есть патроны
+    if (p.tube <= 0) this.startReload();
+  }
+
+  // Перезарядка: 2 секунды, берёт до 2 патронов из запаса.
+  startReload() {
+    const p = this.player;
+    const w = this.equipment.weapon();
+    if (!w || w.kind !== "shotgun") return;
+    if (p.reloadT > 0 || p.tube >= SHOTGUN_TUBE) return;
+    if (p.ammo <= 0) {
+      this.bus.emit("dryfire"); // патроны кончились — пустой щелчок
+      return;
+    }
+    p.reloadT = SHOTGUN_RELOAD;
+    this.bus.emit("reload-start");
+  }
+
+  // Полёт дроби: столкновения с врагами (кровь) и стенами (искры)
+  updatePellets(dt) {
+    for (let i = this.pellets.length - 1; i >= 0; i--) {
+      const pl = this.pellets[i];
+      const expired = pl.update(dt);
+      let gone = expired;
+      if (!gone) {
+        const impactAngle = Math.atan2(pl.vy, pl.vx);
+        for (const e of this.enemies) {
+          if (e.dead) continue;
+          const d = Math.hypot(e.x - pl.x, e.y - (pl.y + 4));
+          if (d < e.r + pl.r) {
+            this.hitEnemy(e, pl.dmg, impactAngle);
+            this.bus.emit("blood", { x: pl.x, y: pl.y, angle: impactAngle });
+            gone = true;
+            break;
+          }
+        }
+        if (!gone && this.map.cellAt(pl.x, pl.y).solid) {
+          this.bus.emit("spark", { x: pl.x, y: pl.y });
+          gone = true;
+        }
+      }
+      if (gone) this.pellets.splice(i, 1);
+    }
+  }
+
+  // Подбор россыпей патронов (пополняют запас, не схрон)
+  updateAmmoPickups(dt, p) {
+    for (let i = this.ammoPickups.length - 1; i >= 0; i--) {
+      const ap = this.ammoPickups[i];
+      if (ap.update(dt, p)) {
+        p.ammo += ap.amount;
+        this.bus.emit("ammo", { x: ap.x, y: ap.y, amount: ap.amount, total: p.ammo });
+        this.ammoPickups.splice(i, 1);
+      }
+    }
+  }
+
   // Удар веером: задевает врагов в радиусе оружия и в секторе
   // ±1.25 рад (~±72°) вокруг направления удара.
-  doAttack(angle) {
+  meleeAttack(angle) {
     const p = this.player;
     if (p.attackCooldown > 0) return; // идёт перезарядка
     const weapon = this.equipment.weapon();

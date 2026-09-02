@@ -56,16 +56,23 @@
 | `hurt` | `{ x, y, dmg }` | Renderer (число, брызги), Game (звук, тряска, мигание экрана) |
 | `cold-tick` | `{ x, y, amount, critical }` | Renderer (число, лёд), Game (треск) |
 | `pickup` | `{ x, y, item, isNew, equipped, color, statText }` | Renderer (вспышка), Game (звук, тост, снапшот) |
-| `orb` | `{ x, y, hp }` | Renderer (число, брызги), Game (звук) |
+| `xp` / `levelup` | `{ x, y, amount }` / `{ x, y, level }` | Renderer (число, всплеск), Game (звук, тряска, снапшот) |
+| `shot` | `{ x, y, angle, range, tube }` | Renderer (вспышка, гильза, дым), Game (звук, тряска, снапшот) |
+| `blood` | `{ x, y, angle }` | Renderer (брызги крови от дроби) |
+| `spark` | `{ x, y }` | Renderer (искры дроби о стену) |
+| `ammo` | `{ x, y, amount, total }` | Renderer (число, брызги), Game (звук, снапшот) |
+| `reload-start` / `reload-done` / `dryfire` | — / `{ tube, ammo }` / — | Game (звуки перезарядки, снапшот) |
 | `growl` | `{ x, y, voice, name, soft }` | Game (голос врага; низкие freq → тряска) |
 | `heartbeat` | — | Game (звук) |
+| `weather` / `blizzard` | `{ dark }` / `{ active }` | Game (звук, тост) |
 | `death` | `{ cause, time, kills }` | Game (звук, статистика, экран смерти) |
 | `victory` | `{ time, kills }` | Game (звук, статистика, экран победы) |
 
 ## Как расширять
 
 ### Новый класс врага (механический, подземный…)
-1. Создать `sim/enemies/DrillBot.js`: `export const def = { type, art, name, hp, speed, aggro, range, dmg, cd, scale, r, h, orbs, voice }`
+1. Создать `sim/enemies/DrillBot.js`: `export const def = { type, art, name, hp, speed, aggro, range, dmg, cd, r, h, xp, voice }`
+   (габариты — размером арт-сетки при едином пикселе, см. `WORLD.md §3.2`)
    и класс `extends Enemy` с переопределёнными хуками
    (`windupTime / strikeLunge / duringStrike / windupVoice / …`) либо собственным
    `update()` (рытьё под снегом, телепорт, стрельба — что угодно).

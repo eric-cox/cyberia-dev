@@ -17,5 +17,9 @@ export class Player extends Entity {
     this.attackAnimTime = 0; // сколько ещё идёт анимация замаха
     this.flash = 0; // белая вспышка при уроне
     this.lunge = 0; // рывок при ударе
+    // --- дробовик (см. Simulation.fireShotgun) ---
+    this.tube = 0; // патронов в стволе (до 2)
+    this.ammo = 0; // запас патронов в кармане
+    this.reloadT = 0; // идёт перезарядка (сек, >0)
   }
 }

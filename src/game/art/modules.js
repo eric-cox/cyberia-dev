@@ -833,6 +833,63 @@ const golemArt = defineArt({
   },
 });
 
+// ---------- дробовик «Гроза» (в руке, дуло в +X) ----------
+const drawShotgun = () => (p) => {
+  const K = "#10151f", M = "#55688a", B = "#3d4d6b", G = "#7d92b5",
+    T = "#8a5a3a", D = "#6a4229";
+  // ствол (длинный, вправо)
+  p.rect(5, 2, 17, 2, K);
+  p.rect(6, 2, 15, 1, G); // блик сверху
+  p.rect(6, 3, 15, 1, M);
+  p.px(21, 2, K); p.px(21, 3, K); // дуло
+  // подствольный магазин
+  p.rect(7, 4, 12, 1, K);
+  p.rect(8, 4, 10, 1, B);
+  // ствольная коробка
+  p.rect(3, 2, 4, 3, K);
+  p.rect(4, 2, 2, 3, B);
+  // приклад (дерево, влево)
+  p.rect(0, 3, 4, 2, K);
+  p.rect(0, 4, 4, 1, D);
+  p.px(0, 3, T); p.px(1, 3, T); p.px(2, 3, T);
+  // цевьё (помпа)
+  p.rect(9, 5, 4, 1, K);
+  p.rect(10, 5, 2, 1, T);
+  // спусковая скоба
+  p.px(6, 5, K); p.px(7, 5, K); p.px(6, 6, K);
+};
+const shotgunArt = defineArt({
+  id: "shotgun",
+  w: 22, h: 7, palette: {},
+  animations: { idle: { fps: 1, frames: [drawShotgun()] } },
+});
+
+// ---------- патрон (россыпь на земле) ----------
+const PAL_SHELL = { k: "#10151f", r: "#c23b3b", g: "#d9b54a", b: "#8a7432" };
+const shellArt = defineArt({
+  id: "shell",
+  w: 12, h: 12, palette: PAL_SHELL,
+  animations: {
+    idle: {
+      fps: 1,
+      frames: [[
+        "............",
+        "............",
+        "............",
+        "....kkkk....",
+        "...krrrrk...",
+        "...krrrrk...",
+        "...kggggk...",
+        "...kggggk...",
+        "...kbbbbk...",
+        "....kkkk....",
+        "............",
+        "............",
+      ]],
+    },
+  },
+});
+
 export const ART_MODULES = [
   playerArt,
   wolfArt,
@@ -841,6 +898,8 @@ export const ART_MODULES = [
   rhinoArt,
   ratArt,
   golemArt,
+  shotgunArt,
+  shellArt,
   treeArt,
   hatArt,
   jacketArt,

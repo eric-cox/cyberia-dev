@@ -13,6 +13,7 @@
 // ============================================================
 import { RUN_LOOT, ITEMS, TIER_COLORS } from "../data/items.js";
 import { Pickup } from "../sim/Pickup.js";
+import { AmmoPickup } from "../sim/AmmoPickup.js";
 
 // Раскладка артефактов забега по карте
 export function placeRunLoot(map, rng, diff) {
@@ -22,6 +23,17 @@ export function placeRunLoot(map, rng, diff) {
     const [minR, maxR] = diff.loot.rings[item.tier];
     const pos = map.freeSpot(minR, maxR, rng);
     pickups.push(new Pickup(pos.x, pos.y, item));
+  }
+  return pickups;
+}
+
+// Россыпи патронов для дробовика (расходник, не артефакт)
+export function placeAmmo(map, rng, diff) {
+  const pickups = [];
+  const [minR, maxR] = diff.loot.ammoRing;
+  for (let i = 0; i < diff.loot.ammoCount; i++) {
+    const pos = map.freeSpot(minR, maxR, rng);
+    pickups.push(new AmmoPickup(pos.x, pos.y, diff.loot.ammoPerPickup));
   }
   return pickups;
 }
