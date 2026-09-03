@@ -335,13 +335,17 @@ export class Weather {
     }
 
     // ближние снежинки: сгустки через медленные волны —
-    // в одних местах снег густеет, в других редеет
+    // в одних местах снег густеет, в других редеет.
+    // clump — произведение двух синус от позиции снежинки: значение в
+    // [-1, 1], «прибитое» к её координатам. Ниже порога — снежинка в
+    // «разрыве» (её не рисуем), выше — в «сгустке». Порог плавает от
+    // интенсивности, поэтому плотность снега дышит по всему экрану.
     let current = -1;
     for (const f of this.flakes) {
-      const g =
+      const clump =
         Math.sin(f.x * 0.0042 + this.t * 0.31) *
         Math.sin(f.y * 0.0051 - this.t * 0.19 + f.ph);
-      if (g < this.threshold) continue;
+      if (clump < this.threshold) continue;
 
       const group = f.shadeAt < mix ? f.groupDark : f.groupWhite;
       if (group !== current) {

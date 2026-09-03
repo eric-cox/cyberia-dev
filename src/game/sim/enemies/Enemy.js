@@ -83,10 +83,10 @@ export class Enemy extends Entity {
 
   // ---------- основной цикл: автомат wander→chase→windup→strike ----------
   update(dt, sim) {
-    const p = sim.player;
+    const player = sim.player;
     this.flash = Math.max(0, this.flash - dt);
     this.attackCooldown -= dt;
-    const d = Math.hypot(p.x - this.x, p.y - this.y);
+    const dist = Math.hypot(player.x - this.x, player.y - this.y);
 
     // Отдача от удара игрока: разовый импульс вливается в скорость.
     // Дальше её гасит инерция (на льду зверя уносит далеко).
@@ -103,23 +103,23 @@ export class Enemy extends Entity {
         this.wanderTimer -= dt;
         if (this.wanderTimer <= 0) {
           this.wanderTimer = 1.5 + Math.random() * 2.5;
-          const a = Math.random() * Math.PI * 2;
-          this.wx = this.x + Math.cos(a) * 40;
-          this.wy = this.y + Math.sin(a) * 40;
+          const wanderAngle = Math.random() * Math.PI * 2;
+          this.wx = this.x + Math.cos(wanderAngle) * 40;
+          this.wy = this.y + Math.sin(wanderAngle) * 40;
         }
         this.moveToward(this.wx, this.wy, this.wanderSpeed(), dt, sim);
-        if (d < this.def.aggro) {
+        if (dist < this.def.aggro) {
           this.state = "chase";
           if (!this.growled) {
             this.growled = true; // рычит один раз при обнаружении
-            if (d < 220) this.speak(sim);
+            if (dist < 220) this.speak(sim);
           }
         }
         break;
       }
       // Погоня: преследует, пока игрок не оторвался (гистерезис ×1.5).
       case "chase": {
-        if (d > this.def.aggro * 1.5) {
+        if (dist > this.def.aggro * 1.5) {
           this.state = "wander";
           break;
         }
@@ -127,29 +127,29 @@ export class Enemy extends Entity {
         if (this.voiceCooldown <= 0) {
           this.voiceCooldown =
             (this.def.voice ? this.def.voice.every : 4) + Math.random() * 2;
-          if (d < 300) this.speak(sim, true);
+          if (dist < 300) this.speak(sim, true);
         }
-        if (d <= this.def.range + p.r + 2 && this.attackCooldown <= 0) {
+        if (dist <= this.def.range + player.r + 2 && this.attackCooldown <= 0) {
           this.state = "windup";
           this.windupTimer = this.windupTime();
           if (this.windupVoice()) this.speak(sim);
           break;
         }
-        this.moveToward(p.x, p.y, this.chaseSpeed(), dt, sim);
+        this.moveToward(player.x, player.y, this.chaseSpeed(), dt, sim);
         break;
       }
       // Замах (телеграф): стоит на месте, потом бьёт с рывком.
       case "windup": {
         this.windupTimer -= dt;
-        this.flip = p.x < this.x;
+        this.flip = player.x < this.x;
         if (this.windupTimer <= 0) {
           this.state = "strike";
           this.strikeTimer = this.strikeDuration();
           this.ramCooldown = 0;
-          const ang = Math.atan2(p.y - this.y, p.x - this.x);
-          this.knockX = Math.cos(ang) * this.strikeLunge();
-          this.knockY = Math.sin(ang) * this.strikeLunge();
-          if (d <= this.def.range + p.r + this.strikeReach())
+          const strikeAngle = Math.atan2(player.y - this.y, player.x - this.x);
+          this.knockX = Math.cos(strikeAngle) * this.strikeLunge();
+          this.knockY = Math.sin(strikeAngle) * this.strikeLunge();
+          if (dist <= this.def.range + player.r + this.strikeReach())
             sim.damagePlayer(this.dmg, this);
         }
         break;
@@ -168,22 +168,22 @@ export class Enemy extends Entity {
     this.animT += dt;
   }
 
-  // Движение с инерцией: на снегу зверь послушен, на льду —
+  // Движение к точке с инерцией: на снегу зверь послушен, на льду —
   // проскальзывает мимо и с трудом поворачивает.
-  moveToward(tx, ty, speed, dt, sim) {
-    const dx = tx - this.x;
-    const dy = ty - this.y;
-    const l = Math.hypot(dx, dy);
-    let dvx = 0;
-    let dvy = 0;
-    if (l > 3) {
+  moveToward(targetX, targetY, speed, dt, sim) {
+    const dx = targetX - this.x;
+    const dy = targetY - this.y;
+    const dist = Math.hypot(dx, dy);
+    let desiredVX = 0;
+    let desiredVY = 0;
+    if (dist > 3) {
       const cell = sim.map.cellAt(this.x, this.y);
-      const s = speed * cell.speed;
-      dvx = (dx / l) * s;
-      dvy = (dy / l) * s;
-      if (Math.abs(dx) > 2) this.flip = dx < 0;
+      const cellSpeed = speed * cell.speed;
+      desiredVX = (dx / dist) * cellSpeed;
+      desiredVY = (dy / dist) * cellSpeed;
+      if (Math.abs(dx) > 2) this.flip = dx < 0; // разворот по горизонтали
     }
-    steer(this, dvx, dvy, sim.map, dt);
+    steer(this, desiredVX, desiredVY, sim.map, dt);
     const blocked = sim.moveEntity(this, this.vx * dt, this.vy * dt);
     if (blocked.x) this.vx *= -0.25;
     if (blocked.y) this.vy *= -0.25;

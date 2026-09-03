@@ -199,10 +199,11 @@ export default class Game {
 
     if (sim.state === "menu") {
       this.menuT += dt;
-      const c = sim.map.center;
+      const center = sim.map.center;
+      // камера медленно плывёт по кругу — живой фон меню
       this.camera.set(
-        c.x + Math.cos(this.menuT * 0.11) * 110,
-        c.y + Math.sin(this.menuT * 0.09) * 110
+        center.x + Math.cos(this.menuT * 0.11) * 110,
+        center.y + Math.sin(this.menuT * 0.09) * 110
       );
       if (cmd.enter) this.startRun();
       return;
@@ -214,11 +215,11 @@ export default class Game {
     }
 
     // --- playing ---
-    const p = sim.player;
-    if (p)
+    const player = sim.player;
+    if (player)
       this.camera.follow(
-        p.x,
-        p.y,
+        player.x,
+        player.y,
         dt,
         sim.map.widthPx,
         sim.map.heightPx,
@@ -228,18 +229,18 @@ export default class Game {
 
     if (cmd.toggleMute) {
       this.sfx.unlock();
-      const m = this.sfx.toggleMute();
-      this.toast({ kind: "sys", text: m ? "ЗВУК ВЫКЛ" : "ЗВУК ВКЛ" });
+      const muted = this.sfx.toggleMute();
+      this.toast({ kind: "sys", text: muted ? "ЗВУК ВЫКЛ" : "ЗВУК ВКЛ" });
       this.pushSnapshot();
     }
     if (cmd.toggleInventory)
       this.hooks.onToggleInventory && this.hooks.onToggleInventory();
 
-    // прицел ЛКМ: экранные координаты → мировой угол
-    if (cmd.attackAim && p) {
-      const wx = this.camera.x + (cmd.mouseX - this.renderer.viewW / 2) / ZOOM;
-      const wy = this.camera.y + (cmd.mouseY - this.renderer.viewH / 2) / ZOOM;
-      cmd.aimAngle = Math.atan2(wy - p.y, wx - p.x);
+    // прицел ЛКМ: экранные координаты курсора → мировые → угол от игрока
+    if (cmd.attackAim && player) {
+      const worldX = this.camera.x + (cmd.mouseX - this.renderer.viewW / 2) / ZOOM;
+      const worldY = this.camera.y + (cmd.mouseY - this.renderer.viewH / 2) / ZOOM;
+      cmd.aimAngle = Math.atan2(worldY - player.y, worldX - player.x);
     }
 
     // хитстоп: короткая пауза мира ради «веса» удара

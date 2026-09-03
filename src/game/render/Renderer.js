@@ -195,31 +195,32 @@ export class Renderer {
 
       ctx.drawImage(this.terrain(sim.map), 0, 0);
 
-      // проход сущностей с y-сортировкой
+      // проход сущностей с y-сортировкой: всё, что ниже по Y, рисуется
+      // позже (поверх) — так возникает псевдо-глубина
       const list = [];
-      for (const tr of sim.map.decor)
-        list.push({ y: tr.y, d: () => drawTree(ctx, tr, this.time) });
-      for (const pk of sim.pickups)
-        list.push({ y: pk.y, d: () => drawPickup(ctx, pk) });
-      for (const ap of sim.ammoPickups)
-        list.push({ y: ap.y, d: () => drawAmmoPickup(ctx, ap) });
-      for (const e of sim.enemies)
-        list.push({ y: e.y, d: () => drawEnemy(ctx, e) });
+      for (const tree of sim.map.decor)
+        list.push({ y: tree.y, draw: () => drawTree(ctx, tree, this.time) });
+      for (const pickup of sim.pickups)
+        list.push({ y: pickup.y, draw: () => drawPickup(ctx, pickup) });
+      for (const ammo of sim.ammoPickups)
+        list.push({ y: ammo.y, draw: () => drawAmmoPickup(ctx, ammo) });
+      for (const enemy of sim.enemies)
+        list.push({ y: enemy.y, draw: () => drawEnemy(ctx, enemy) });
       if (sim.player && sim.state !== "menu") {
-        const p = sim.player;
-        this._lastPlayerX = p.x;
-        this._lastPlayerY = p.y;
+        const player = sim.player;
+        this._lastPlayerX = player.x;
+        this._lastPlayerY = player.y;
         const weapon = sim.equipment.weapon();
         list.push({
-          y: p.y,
-          d: () =>
+          y: player.y,
+          draw: () =>
             sim.state === "dead"
-              ? drawDeadPlayer(ctx, p)
-              : drawPlayer(ctx, p, weapon),
+              ? drawDeadPlayer(ctx, player)
+              : drawPlayer(ctx, player, weapon),
         });
       }
       list.sort((a, b) => a.y - b.y);
-      for (const it of list) it.d();
+      for (const entry of list) entry.draw();
 
       // дробь — поверх сущностей (летит быстро)
       drawPellets(ctx, sim.pellets);
