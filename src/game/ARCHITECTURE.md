@@ -35,7 +35,7 @@
 | engine | `engine/Input.js`, `engine/Camera.js` | Команда игрока за кадр; камера + тряска |
 | systems | `systems/Difficulty.js`, `systems/SaveStore.js`, `systems/Sfx.js` | Баланс (единый источник чисел), персистентность, звук |
 | data | `data/items.js`, `data/bestiary.js` | Реестр артефактов (одежда/оружие, тиры); описания врагов (лор для бестиария) |
-| loot | `loot/Equipment.js`, `loot/RunLoot.js` | Diablo-экипировка (слоты, надеть/снять/выброс); раскладка лута по карте |
+| loot | `loot/Equipment.js`, `loot/RunLoot.js` | Diablo-экипировка (слоты, надеть/снять/выброс); лут-улучшения надетого (0–2 шт., только сильнее) + патроны |
 | world | `world/tiles.js`, `world/WorldMap.js`, `world/WorldGen.js` | Реестр ячеек (speed/inertia/solid); данные карты + запросы; генерация |
 | sim | `sim/Simulation.js`, `sim/Movement.js`, `sim/Player.js`, `sim/Pickup.js`, `sim/Experience.js`, `sim/Entity.js` | Чистая игровая логика забега; инерционное движение; опыт и уровни |
 | sim/enemies | `Enemy.js` (базовый ИИ) + файлы видов + `registry.js` + `EnemyFactory.js` | Типы врагов и правила расселения |
@@ -111,13 +111,24 @@
     тон скатывается вниз (`glide`).
 
 ### Лут
+- **Только улучшения надетого**: на карте за забег — от 0 до 2 предметов
+  (`loot.upgradeCountRange`), каждый строго сильнее надетого в своём слоте
+  и «немного лучше» (ближайший по силе). Слабее/равно надетого на карте не
+  бывает никогда. Логика — `loot/RunLoot.placeUpgrades`; «сила» предмета —
+  `RunLoot.itemPower` (одежда: `cold`, оружие: суммарный урон, у дробовика —
+  урон залпа).
+- **Охрана лута**: вокруг каждого артефакта `EnemyFactory.spawnLootGuards`
+  расселяет скопление врагов (`enemies.lootGuard`: число, кольцо, пулы типов
+  по тиру предмета). Позиции — `WorldMap.freeSpotAround`.
+- **Победа**: собрать все улучшения (если они есть) ИЛИ, при их отсутствии,
+  достичь `loot.victoryLevel` (запасной путь).
 - **Продвинутый лут не надевается на лету**: во время забега базовый лут
   (тир ≤ `loot.autoEquipMaxTier`, по умолчанию 1) надевается сразу, а всё,
   что выше, уходит в схрон (`RunLoot.collectArtifact`). Снарядить продвинутые
   находки можно только между играми, на экране снаряжения (`LoadoutScreen` →
   `Equipment.equip/unequip/discard`). Порог — одно число в `Difficulty`,
   легко меняется под баланс или ивент (`0` — ничего не надевать).
-- Новые предметы: реестр `data/items.js` (+ `RUN_LOOT`) и микро-модуль арта.
+- Новые предметы: реестр `data/items.js` и микро-модуль арта.
 - Новые правила (дроп с боссов, сундуки, редкости): `loot/RunLoot.js`.
 - Новые слоты экипировки: ключ в `systems/SaveStore.js` (defaults.equipped)
   + `data/items.SLOT_NAMES`; `Equipment` работает по `item.slot` автоматически.

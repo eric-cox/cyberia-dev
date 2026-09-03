@@ -58,13 +58,6 @@ export const ITEMS = {
   },
 };
 
-// Артефакты, раскладываемые по карте каждый забег
-export const RUN_LOOT = [
-  "hat1", "hat3", "jacket2", "jacket3", "pants1", "pants3", "boots1",
-  "boots3", "mittens1", "mittens2", "knife1", "knife2", "crowbar1", "crowbar3",
-  "shotgun3",
-];
-
 export const TIER_COLORS = ["#9fb6cc", "#9fb6cc", "#6fd6ff", "#ffb347"];
 
 // Полный объект предмета по id (для UI/снапшотов)

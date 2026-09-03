@@ -18,6 +18,7 @@
 //  размера арт-сетки при едином масштабе пикселя (см. WORLD.md §3).
 // ============================================================
 import { makeEnemy } from "./registry.js";
+import { TILE } from "../../core/Constants.js";
 
 // Розыгрыш количества из диапазона [min, max].
 // Дробная часть значения = вероятность ещё одной особи:
@@ -48,4 +49,25 @@ export function populateEnemies(map, rng, diff) {
   }
 
   return enemies;
+}
+
+// ---------- ОХРАНА ЛУТА ----------
+// Вокруг каждого артефакта на карте — скопление врагов.
+// Тип охранников зависит от тира предмета (пулы в Difficulty).
+export function spawnLootGuards(map, rng, diff, pickups) {
+  const guards = [];
+  const cfg = diff.enemies.lootGuard;
+  for (const pk of pickups) {
+    const n = rollCount(cfg.count, rng);
+    const pool = cfg.pools[pk.item.tier] || cfg.pools[3];
+    const cx = pk.x / TILE;
+    const cy = pk.y / TILE;
+    for (let i = 0; i < n; i++) {
+      const type = pool[Math.floor(rng() * pool.length)];
+      const [rMin, rMax] = cfg.ring;
+      const pos = map.freeSpotAround(cx, cy, rMin, rMax, rng);
+      guards.push(makeEnemy(type, pos.x, pos.y, rng));
+    }
+  }
+  return guards;
 }

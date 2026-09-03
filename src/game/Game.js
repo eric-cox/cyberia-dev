@@ -26,7 +26,7 @@ import { Simulation, SHOTGUN_TUBE, SHOTGUN_RELOAD } from "./sim/Simulation.js";
 import { Renderer } from "./render/Renderer.js";
 import { artSystem } from "./art/pixel.js";
 import { ART_MODULES } from "./art/modules.js";
-import { ITEMS, RUN_LOOT } from "./data/items.js";
+import { ITEMS } from "./data/items.js";
 
 export default class Game {
   constructor(canvas, hooks = {}) {
@@ -333,7 +333,7 @@ export default class Game {
         kills: sim.kills,
         time: sim.time,
         found: sim.foundThisRun,
-        total: sim.total || RUN_LOOT.length,
+        total: sim.total,
         equipped: {
           hat: toItem(slots.hat),
           jacket: toItem(slots.jacket),

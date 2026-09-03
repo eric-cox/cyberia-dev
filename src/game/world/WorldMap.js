@@ -141,4 +141,27 @@ export class WorldMap {
     }
     return null;
   }
+
+  // Свободная точка в кольце [minR..maxR] тайлов ВОКРУГ заданной
+  // точки (в отличие от freeSpot — вокруг центра карты).
+  // Используется для расселения охраны вокруг артефактов.
+  freeSpotAround(cx, cy, minR, maxR, rng) {
+    for (let tries = 0; tries < 40; tries++) {
+      const a = rng() * Math.PI * 2;
+      const rr = minR + rng() * (maxR - minR);
+      const tx = Math.round(cx + Math.cos(a) * rr);
+      const ty = Math.round(cy + Math.sin(a) * rr);
+      const i = ty * this.size + tx;
+      if (cellOf(this.get(tx, ty)).solid) continue;
+      if (this.clearAround(i)) return this.pxOf(i);
+    }
+    // запасной вариант: любая проходимая клетка поблизости
+    for (let tries = 0; tries < 20; tries++) {
+      const tx = Math.round(cx + (rng() - 0.5) * maxR * 2);
+      const ty = Math.round(cy + (rng() - 0.5) * maxR * 2);
+      if (!cellOf(this.get(tx, ty)).solid)
+        return { x: tx * TILE + TILE / 2, y: ty * TILE + TILE / 2 };
+    }
+    return { x: cx * TILE + TILE / 2, y: cy * TILE + TILE / 2 };
+  }
 }

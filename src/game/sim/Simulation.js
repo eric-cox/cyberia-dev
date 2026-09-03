@@ -14,7 +14,7 @@ import { clamp } from "../core/Utils.js";
 import { mulberry32 } from "../core/Rng.js";
 import { generateWorld } from "../world/WorldGen.js";
 import {
-  placeRunLoot,
+  placeUpgrades,
   placeAmmo,
   collectArtifact,
   itemStatText,
@@ -24,7 +24,7 @@ import { steer } from "./Movement.js";
 import { Player } from "./Player.js";
 import { Experience } from "./Experience.js";
 import { Pellet } from "./Pellet.js";
-import { populateEnemies } from "./enemies/EnemyFactory.js";
+import { populateEnemies, spawnLootGuards } from "./enemies/EnemyFactory.js";
 
 // дробовик: время перезарядки и ёмкость ствола
 export const SHOTGUN_RELOAD = 2;
@@ -84,9 +84,12 @@ export class Simulation {
     const c = this.map.center;
 
     this.player = new Player(c.x, c.y, this.diff.player.speed);
-    this.pickups = placeRunLoot(this.map, rng, this.diff);
+    // на карте — только улучшения надетого (0–2 шт.)
+    this.pickups = placeUpgrades(this.map, rng, this.diff, this.equipment);
     this.ammoPickups = placeAmmo(this.map, rng, this.diff);
     this.enemies = populateEnemies(this.map, rng, this.diff);
+    // вокруг каждого артефакта — скопление врагов-охранников
+    this.enemies.push(...spawnLootGuards(this.map, rng, this.diff, this.pickups));
     this.pellets = [];
 
     this.resetRunFields();
@@ -267,7 +270,8 @@ export class Simulation {
       statText: itemStatText(item),
     });
 
-    if (this.foundThisRun >= this.total && !this.victoryShown) {
+    // победа по луту — когда он на карте есть и весь собран
+    if (this.total > 0 && this.foundThisRun >= this.total && !this.victoryShown) {
       this.victoryShown = true;
       this.bus.emit("victory", { time: this.time, kills: this.kills });
     }
@@ -424,6 +428,16 @@ export class Simulation {
       // с уровнем растёт максимум жизни, и шкала сразу наполняется
       this.hp = Math.min(this.xp.maxHp, this.hp + this.diff.xp.hpPerLevel);
       this.bus.emit("levelup", { level, maxHp: this.xp.maxHp, x: e.x, y: e.y });
+    }
+    // Запасной путь к победе: если улучшений на карте нет (total === 0),
+    // победа даётся за достижение уровня victoryLevel.
+    if (
+      this.total === 0 &&
+      !this.victoryShown &&
+      this.xp.level >= this.diff.loot.victoryLevel
+    ) {
+      this.victoryShown = true;
+      this.bus.emit("victory", { time: this.time, kills: this.kills });
     }
   }
 
