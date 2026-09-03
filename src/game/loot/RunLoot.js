@@ -51,6 +51,8 @@ export function collectArtifact(store, equipment, item, diff) {
 
 // Человекочитаемое описание статов предмета (для тостов)
 export function itemStatText(item) {
+  if (item.kind === "shotgun")
+    return `${item.pellets}×${item.pelletDmg} урон залпом`;
   return item.slot === "weapon"
     ? `урон ${item.dmg}`
     : `+${item.cold} к теплу`;

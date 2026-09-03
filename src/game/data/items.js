@@ -54,7 +54,7 @@ export const ITEMS = {
     pelletDmg: 9, // урон каждой дробинки
     pelletSpeed: 380,
     spread: 0.42, // разлёт пучка, рад
-    art: "it_shotgun",
+    art: "shotgun", // тот же арт-модуль, что и оружие в руке
   },
 };
 
