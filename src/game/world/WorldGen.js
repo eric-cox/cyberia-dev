@@ -1,176 +1,236 @@
 // ============================================================
 //  world/WorldGen.js — процедурная генерация городского района
-//  Алгоритм из 5 шагов:
-//  1. Разметка зданий (Block Layout)
-//  2. Прорисовка периметров и двери
-//  3. Валидация связности (Flood Fill)
-//  4. Расстановка уличных объектов (Street Dressing)
-//  5. Финальная проверка коллизий
+//  Интегрированная система: уличная сеть + здания + объекты
 // ============================================================
+
 import { MAP_TILES, TILE } from "../core/Constants.js";
 import { T } from "./tiles.js";
 import { mulberry32 } from "../core/Rng.js";
 import { WorldMap } from "./WorldMap.js";
+import { StreetNetwork } from "./streetNetwork.js";
+import { STREET_TYPE } from "./streetTypes.js";
 import { getRandomPrefabByTags } from "./prefabs.js";
 
-// Константы генерации
-const MIN_BUILDING_SIZE = 5;
-const MAX_BUILDING_SIZE = 15;
-const MIN_STREET_WIDTH = 2;
-const BUILDING_ATTEMPTS = 30;
+// ---------- Главная функция генерации ----------
+export function generateWorld(seed) {
+  const rng = mulberry32(seed);
+  const map = new WorldMap(seed, MAP_TILES, new Uint8Array(MAP_TILES * MAP_TILES));
 
-// ---------- Шаг 1: Разметка зданий ----------
-function generateBuildingLayout(rng) {
-  const buildings = [];
-  const occupied = new Uint8Array(MAP_TILES * MAP_TILES);
+  // ========== ЭТАП 1: Генерация уличной сети ==========
+  const streetNetwork = new StreetNetwork(rng);
+  streetNetwork.generate();
 
-  for (let attempt = 0; attempt < BUILDING_ATTEMPTS; attempt++) {
-    const width = MIN_BUILDING_SIZE + Math.floor(rng() * (MAX_BUILDING_SIZE - MIN_BUILDING_SIZE));
-    const height = MIN_BUILDING_SIZE + Math.floor(rng() * (MAX_BUILDING_SIZE - MIN_BUILDING_SIZE));
-    
-    // Позиция с отступом от края
-    const x = 3 + Math.floor(rng() * (MAP_TILES - width - 6));
-    const y = 3 + Math.floor(rng() * (MAP_TILES - height - 6));
+  // ========== ЭТАП 2: Конвертация уличной сети в тайлы карты ==========
+  for (let y = 0; y < MAP_TILES; y++) {
+    for (let x = 0; x < MAP_TILES; x++) {
+      const streetIdx = y * MAP_TILES + x;
+      const streetType = streetNetwork.streetType[streetIdx];
+      const mapIdx = y * MAP_TILES + x;
 
-    // Проверяем, не пересекается ли с другими зданиями
-    let canPlace = true;
-    for (let dy = -MIN_STREET_WIDTH; dy < height + MIN_STREET_WIDTH && canPlace; dy++) {
-      for (let dx = -MIN_STREET_WIDTH; dx < width + MIN_STREET_WIDTH && canPlace; dx++) {
-        const tx = x + dx;
-        const ty = y + dy;
-        if (tx < 0 || ty < 0 || tx >= MAP_TILES || ty >= MAP_TILES) continue;
-        if (occupied[ty * MAP_TILES + tx] === 1) {
-          canPlace = false;
-        }
+      // Конвертируем типы улиц в типы тайлов карты
+      if (streetType === STREET_TYPE.ROADWAY || 
+          streetType === STREET_TYPE.SIDEWALK || 
+          streetType === STREET_TYPE.PLAZA) {
+        // Улица — это снег (проходимая поверхность)
+        map.tiles[mapIdx] = T.SNOW;
+      } else if (streetType === STREET_TYPE.BUILDING) {
+        // Зона застройки — будет заполнена зданиями
+        map.tiles[mapIdx] = T.HOUSE;
+      } else {
+        // По умолчанию — снег
+        map.tiles[mapIdx] = T.SNOW;
       }
     }
+  }
 
-    if (canPlace) {
-      buildings.push({ x, y, width, height });
-      // Помечаем здание и буфер вокруг него
-      for (let dy = -MIN_STREET_WIDTH; dy < height + MIN_STREET_WIDTH; dy++) {
-        for (let dx = -MIN_STREET_WIDTH; dx < width + MIN_STREET_WIDTH; dx++) {
-          const tx = x + dx;
-          const ty = y + dy;
-          if (tx >= 0 && ty >= 0 && tx < MAP_TILES && ty < MAP_TILES) {
-            occupied[ty * MAP_TILES + tx] = 1;
-          }
+  // ========== ЭТАП 3: Генерация зданий в зонах застройки ==========
+  generateBuildings(map, streetNetwork, rng);
+
+  // ========== ЭТАП 4: Расстановка уличных объектов ==========
+  const streetObjects = placeStreetObjects(map, streetNetwork, rng);
+  map.objects = streetObjects;
+
+  // ========== ЭТАП 5: Добавление деталей ==========
+  addStreetDetails(map, streetNetwork, rng);
+
+  // ========== ЭТАП 6: Финализация ==========
+  // Стартовая поляна в центре
+  const C = MAP_TILES / 2;
+  for (let dy = -3; dy <= 3; dy++) {
+    for (let dx = -3; dx <= 3; dx++) {
+      const tx = C + dx;
+      const ty = C + dy;
+      if (tx >= 0 && ty >= 0 && tx < MAP_TILES && ty < MAP_TILES) {
+        if (map.get(tx, ty) !== T.SNOW) {
+          map.set(tx, ty, T.SNOW);
         }
       }
     }
   }
 
-  return buildings;
+  // Сохраняем данные уличной сети в карте
+  map.streetNetwork = streetNetwork;
+
+  // Строим индекс проходимых ячеек
+  map.buildBands();
+
+  return map;
 }
 
-// ---------- Шаг 2: Прорисовка стен и дверей ----------
-function drawBuildingWalls(map, buildings, rng) {
-  for (const building of buildings) {
-    // Рисуем стены по периметру
-    for (let x = building.x; x < building.x + building.width; x++) {
-      map.set(x, building.y, T.HOUSE); // Верхняя стена
-      map.set(x, building.y + building.height - 1, T.HOUSE); // Нижняя стена
+// ---------- Генерация зданий ----------
+function generateBuildings(map, streetNetwork, rng) {
+  // Находим зоны застройки и создаём здания
+  const buildingZones = findBuildingZones(streetNetwork);
+  
+  for (const zone of buildingZones) {
+    // Создаём здание в зоне
+    const height = 1 + Math.floor(rng() * 3); // 1-3 этажа
+    const hasSign = rng() < 0.4; // 40% шанс вывески
+    
+    for (let y = zone.y; y < zone.y + zone.height; y++) {
+      for (let x = zone.x; x < zone.x + zone.width; x++) {
+        const idx = y * MAP_TILES + x;
+        
+        // Только периметр здания — стена
+        const isPerimeter = x === zone.x || x === zone.x + zone.width - 1 ||
+                           y === zone.y || y === zone.y + zone.height - 1;
+        
+        if (isPerimeter) {
+          map.tiles[idx] = T.HOUSE;
+          
+          // Метаданные здания
+          const windows = [];
+          for (let w = 0; w < height * 2; w++) {
+            windows.push(rng() < 0.4); // 40% окон горят
+          }
+          
+          map.houseData.set(`${x},${y}`, {
+            height,
+            windows,
+            hasSign: hasSign && x === zone.x && y === zone.y,
+            signType: hasSign ? ["bar", "shop", "hotel"][Math.floor(rng() * 3)] : null,
+            signColor: ["#ff4757", "#6fd6ff", "#ffb347"][Math.floor(rng() * 3)],
+            buildingWidth: zone.width,
+            buildingDepth: zone.height,
+          });
+        } else {
+          // Внутренность здания — тоже стена (непроходимая)
+          map.tiles[idx] = T.HOUSE;
+        }
+      }
     }
-    for (let y = building.y; y < building.y + building.height; y++) {
-      map.set(building.x, y, T.HOUSE); // Левая стена
-      map.set(building.x + building.width - 1, y, T.HOUSE); // Правая стена
-    }
-
-    // Прорезаем двери (1-3 двери на здание)
+    
+    // Добавляем двери (1-3 на здание)
     const doorCount = 1 + Math.floor(rng() * 3);
     for (let i = 0; i < doorCount; i++) {
       const side = Math.floor(rng() * 4); // 0=top, 1=right, 2=bottom, 3=left
       let doorX, doorY;
-
+      
       if (side === 0) {
-        // Верхняя стена
-        doorX = building.x + 1 + Math.floor(rng() * (building.width - 2));
-        doorY = building.y;
+        doorX = zone.x + 1 + Math.floor(rng() * (zone.width - 2));
+        doorY = zone.y;
       } else if (side === 1) {
-        // Правая стена
-        doorX = building.x + building.width - 1;
-        doorY = building.y + 1 + Math.floor(rng() * (building.height - 2));
+        doorX = zone.x + zone.width - 1;
+        doorY = zone.y + 1 + Math.floor(rng() * (zone.height - 2));
       } else if (side === 2) {
-        // Нижняя стена
-        doorX = building.x + 1 + Math.floor(rng() * (building.width - 2));
-        doorY = building.y + building.height - 1;
+        doorX = zone.x + 1 + Math.floor(rng() * (zone.width - 2));
+        doorY = zone.y + zone.height - 1;
       } else {
-        // Левая стена
-        doorX = building.x;
-        doorY = building.y + 1 + Math.floor(rng() * (building.height - 2));
+        doorX = zone.x;
+        doorY = zone.y + 1 + Math.floor(rng() * (zone.height - 2));
       }
-
+      
       map.set(doorX, doorY, T.SNOW); // Дверь = проходимый тайл
     }
   }
 }
 
-// ---------- Шаг 3: Валидация связности (Flood Fill) ----------
-function validateConnectivity(map) {
+// ---------- Поиск зон застройки ----------
+function findBuildingZones(streetNetwork) {
+  const zones = [];
   const visited = new Uint8Array(MAP_TILES * MAP_TILES);
-  const queue = [];
   
-  // Находим первую проходимую клетку
-  let startX = -1, startY = -1;
-  for (let y = 0; y < MAP_TILES && startX === -1; y++) {
-    for (let x = 0; x < MAP_TILES && startX === -1; x++) {
-      if (map.get(x, y) !== T.HOUSE) {
-        startX = x;
-        startY = y;
+  // Находим связные области BUILDING_ZONE
+  for (let y = 0; y < MAP_TILES; y++) {
+    for (let x = 0; x < MAP_TILES; x++) {
+      const idx = y * MAP_TILES + x;
+      
+      if (streetNetwork.streetType[idx] === STREET_TYPE.BUILDING && !visited[idx]) {
+        // Flood Fill для нахождения зоны
+        const zone = floodFillBuildingZone(x, y, streetNetwork, visited);
+        
+        // Фильтруем слишком маленькие зоны
+        if (zone.width >= 3 && zone.height >= 3) {
+          zones.push(zone);
+        }
       }
     }
   }
+  
+  return zones;
+}
 
-  if (startX === -1) return; // Нет проходимых клеток
-
-  // Flood Fill
-  queue.push([startX, startY]);
+function floodFillBuildingZone(startX, startY, streetNetwork, visited) {
+  const queue = [[startX, startY]];
   visited[startY * MAP_TILES + startX] = 1;
-
+  
+  let minX = startX, maxX = startX;
+  let minY = startY, maxY = startY;
+  
   while (queue.length > 0) {
     const [x, y] = queue.shift();
-    const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
     
+    minX = Math.min(minX, x);
+    maxX = Math.max(maxX, x);
+    minY = Math.min(minY, y);
+    maxY = Math.max(maxY, y);
+    
+    const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
     for (const [dx, dy] of dirs) {
       const nx = x + dx;
       const ny = y + dy;
-      if (nx < 0 || ny < 0 || nx >= MAP_TILES || ny >= MAP_TILES) continue;
-      if (visited[ny * MAP_TILES + nx] === 1) continue;
-      if (map.get(nx, ny) === T.HOUSE) continue;
       
-      visited[ny * MAP_TILES + nx] = 1;
-      queue.push([nx, ny]);
-    }
-  }
-
-  // Проверяем, все ли проходимые клетки посещены
-  for (let y = 0; y < MAP_TILES; y++) {
-    for (let x = 0; x < MAP_TILES; x++) {
-      if (map.get(x, y) !== T.HOUSE && visited[y * MAP_TILES + x] === 0) {
-        // Нашли изолированную область — пробиваем проход
-        map.set(x, y, T.SNOW);
+      if (nx < 0 || ny < 0 || nx >= MAP_TILES || ny >= MAP_TILES) continue;
+      
+      const idx = ny * MAP_TILES + nx;
+      if (visited[idx]) continue;
+      
+      if (streetNetwork.streetType[idx] === STREET_TYPE.BUILDING) {
+        visited[idx] = 1;
+        queue.push([nx, ny]);
       }
     }
   }
+  
+  return {
+    x: minX,
+    y: minY,
+    width: maxX - minX + 1,
+    height: maxY - minY + 1,
+  };
 }
 
-// ---------- Шаг 4: Расстановка уличных объектов ----------
-function placeStreetObjects(map, buildings, rng) {
+// ---------- Расстановка уличных объектов ----------
+function placeStreetObjects(map, streetNetwork, rng) {
   const objects = [];
-
-  // Собираем все тайлы улиц, прилегающие к стенам
+  
+  // Собираем тайлы улиц, прилегающие к зданиям
   const wallAdjacentTiles = [];
   for (let y = 0; y < MAP_TILES; y++) {
     for (let x = 0; x < MAP_TILES; x++) {
-      if (map.get(x, y) !== T.SNOW) continue;
+      const streetIdx = y * MAP_TILES + x;
+      const streetType = streetNetwork.streetType[streetIdx];
       
-      // Проверяем, прилегает ли к стене здания
+      if (streetType !== STREET_TYPE.ROADWAY && streetType !== STREET_TYPE.SIDEWALK) continue;
+      
+      // Проверяем, прилегает ли к зданию
       const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
       for (const [dx, dy] of dirs) {
         const nx = x + dx;
         const ny = y + dy;
         if (nx >= 0 && ny >= 0 && nx < MAP_TILES && ny < MAP_TILES) {
-          if (map.get(nx, ny) === T.HOUSE) {
+          const neighborIdx = ny * MAP_TILES + nx;
+          if (streetNetwork.streetType[neighborIdx] === STREET_TYPE.BUILDING) {
             wallAdjacentTiles.push({ x, y });
             break;
           }
@@ -178,22 +238,24 @@ function placeStreetObjects(map, buildings, rng) {
       }
     }
   }
-
+  
   // Размещаем крупные объекты вдоль стен
-  const largeObjects = ["dumpster", "concrete_block", "cyber_car", "vending_machine"];
   for (const tile of wallAdjacentTiles) {
     if (rng() < 0.15) { // 15% шанс на объект
       const prefab = getRandomPrefabByTags(["cover_high", "wall_adjacent"], rng);
       if (prefab && canPlaceObject(map, tile.x, tile.y, prefab.width, prefab.height)) {
-        placeObject(map, objects, tile.x, tile.y, prefab);
+        placeObject(objects, tile.x, tile.y, prefab);
       }
     }
   }
-
+  
   // Размещаем мелкий мусор
   for (let y = 0; y < MAP_TILES; y++) {
     for (let x = 0; x < MAP_TILES; x++) {
-      if (map.get(x, y) === T.SNOW && rng() < 0.03) { // 3% шанс
+      const streetIdx = y * MAP_TILES + x;
+      const streetType = streetNetwork.streetType[streetIdx];
+      
+      if ((streetType === STREET_TYPE.ROADWAY || streetType === STREET_TYPE.SIDEWALK) && rng() < 0.03) {
         const prefab = getRandomPrefabByTags(["clutter"], rng);
         if (prefab) {
           objects.push({ x, y, prefab });
@@ -201,7 +263,7 @@ function placeStreetObjects(map, buildings, rng) {
       }
     }
   }
-
+  
   return objects;
 }
 
@@ -217,111 +279,27 @@ function canPlaceObject(map, x, y, width, height) {
   return true;
 }
 
-function placeObject(map, objects, x, y, prefab) {
-  // Помечаем тайлы как занятые (но не меняем тип тайла)
-  for (let dy = 0; dy < prefab.height; dy++) {
-    for (let dx = 0; dx < prefab.width; dx++) {
-      if (prefab.collision[dy][dx] === 1) {
-        // Объект имеет коллизию — помечаем
-        objects.push({ x: x + dx, y: y + dy, prefab, isCollision: true });
-      }
-    }
-  }
-  objects.push({ x, y, prefab, isCollision: false });
+function placeObject(objects, x, y, prefab) {
+  objects.push({ x, y, prefab });
 }
 
-// ---------- Шаг 5: Финальная проверка коллизий ----------
-function validateCollisions(map, objects) {
-  // Проверяем, что после расстановки объектов ширина прохода >= 2 тайла
-  // (упрощенная проверка — в полной версии нужен более сложный алгоритм)
-  return objects;
-}
-
-// ---------- Главная функция генерации ----------
-export function generateWorld(seed) {
-  const rng = mulberry32(seed);
-  const map = new WorldMap(seed, MAP_TILES, new Uint8Array(MAP_TILES * MAP_TILES));
-
-  // Инициализируем карту снегом
-  for (let y = 0; y < MAP_TILES; y++) {
-    for (let x = 0; x < MAP_TILES; x++) {
-      map.set(x, y, T.SNOW);
-    }
+// ---------- Добавление деталей улиц ----------
+function addStreetDetails(map, streetNetwork, rng) {
+  // Добавляем люки, лужи, трещины на основе данных streetNetwork
+  for (const manhole of streetNetwork.manholes) {
+    map.decor.push({
+      kind: "manhole",
+      x: manhole.x * TILE + TILE / 2,
+      y: manhole.y * TILE + TILE / 2,
+    });
   }
-
-  // Шаг 1: Разметка зданий
-  const buildings = generateBuildingLayout(rng);
-
-  // Шаг 2: Стены и двери
-  drawBuildingWalls(map, buildings, rng);
-
-  // Шаг 3: Валидация связности
-  validateConnectivity(map);
-
-  // Шаг 4: Расстановка объектов
-  const objects = placeStreetObjects(map, buildings, rng);
-
-  // Шаг 5: Финальная проверка
-  const validatedObjects = validateCollisions(map, objects);
-
-  // Сохраняем объекты в карте
-  map.objects = validatedObjects;
-  map.buildings = buildings;
-
-  // Добавляем мёртвые деревья (для разнообразия)
-  let trees = 0;
-  for (let i = 0; i < 200 && trees < 40; i++) {
-    const tx = Math.floor(rng() * MAP_TILES);
-    const ty = Math.floor(rng() * MAP_TILES);
-    if (map.get(tx, ty) === T.SNOW) {
-      map.set(tx, ty, T.TREE);
-      map.decor.push({
-        kind: "tree",
-        x: tx * TILE + TILE / 2,
-        y: ty * TILE + TILE,
-        sway: rng() * 10,
-      });
-      trees++;
-    }
+  
+  for (const puddle of streetNetwork.puddles) {
+    map.decor.push({
+      kind: "puddle",
+      x: puddle.x * TILE + TILE / 2,
+      y: puddle.y * TILE + TILE / 2,
+      size: puddle.size,
+    });
   }
-
-  // Добавляем замёрзшие озёра
-  for (let i = 0; i < 5; i++) {
-    const cx = 10 + Math.floor(rng() * (MAP_TILES - 20));
-    const cy = 10 + Math.floor(rng() * (MAP_TILES - 20));
-    const r = 2 + Math.floor(rng() * 3);
-    
-    for (let dy = -r; dy <= r; dy++) {
-      for (let dx = -r; dx <= r; dx++) {
-        if (dx * dx + dy * dy <= r * r) {
-          const tx = cx + dx;
-          const ty = cy + dy;
-          if (tx >= 0 && ty >= 0 && tx < MAP_TILES && ty < MAP_TILES) {
-            if (map.get(tx, ty) === T.SNOW) {
-              map.set(tx, ty, dx * dx + dy * dy < (r * 0.5) ** 2 ? T.ICE_SMOOTH : T.ICE);
-            }
-          }
-        }
-      }
-    }
-  }
-
-  // Стартовая поляна в центре
-  const C = MAP_TILES / 2;
-  for (let dy = -3; dy <= 3; dy++) {
-    for (let dx = -3; dx <= 3; dx++) {
-      const tx = C + dx;
-      const ty = C + dy;
-      if (tx >= 0 && ty >= 0 && tx < MAP_TILES && ty < MAP_TILES) {
-        if (map.get(tx, ty) !== T.SNOW) {
-          map.set(tx, ty, T.SNOW);
-        }
-      }
-    }
-  }
-
-  // Строим индекс проходимых ячеек
-  map.buildBands();
-
-  return map;
 }

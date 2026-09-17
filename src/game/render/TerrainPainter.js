@@ -9,6 +9,7 @@
 import { TILE } from "../core/Constants.js";
 import { T } from "../world/tiles.js";
 import { mulberry32 } from "../core/Rng.js";
+import { StreetRenderer } from "./StreetRenderer.js";
 
 const SNOW_BASE = ["#dfe9f5", "#cddcf0", "#b3c6e0"];
 const SNOW_SPECK = ["#c9d8ec", "#b9cbe4", "#9fb3d1"];
@@ -21,15 +22,32 @@ export function paintTerrain(map) {
   const ctx = cv.getContext("2d");
   const rng = mulberry32((map.seed ^ 0x5eedbeef) >>> 0);
 
-  for (let ty = 0; ty < map.size; ty++)
+  // ========== Рендеринг улиц (если есть уличная сеть) ==========
+  if (map.streetNetwork) {
+    const streetRenderer = new StreetRenderer();
+    streetRenderer.renderToContext(ctx, map.streetNetwork, 0);
+  }
+
+  // ========== Рендеринг остальных тайлов ==========
+  for (let ty = 0; ty < map.size; ty++) {
     for (let tx = 0; tx < map.size; tx++) {
       const t = map.get(tx, ty);
       const px = tx * TILE;
       const py = ty * TILE;
 
+      // Пропускаем улицы (уже отрисованы)
+      if (map.streetNetwork) {
+        const streetIdx = ty * map.size + tx;
+        const streetType = map.streetNetwork.streetType[streetIdx];
+        if (streetType === 1 || streetType === 2 || streetType === 3) {
+          // ROADWAY, SIDEWALK, PLAZA — уже отрисованы
+          continue;
+        }
+      }
+
       if (t === T.ICE || t === T.ICE_SMOOTH) {
         paintIce(ctx, map, tx, ty, px, py, t === T.ICE_SMOOTH, rng);
-      } else {
+      } else if (t === T.SNOW || t === T.SNOW_DEEP || t === T.SNOW_VERY_DEEP) {
         // снег (под скалами/деревьями тоже)
         const depth = t <= T.SNOW_VERY_DEEP ? t : 1;
         ctx.fillStyle = SNOW_BASE[depth];
@@ -63,8 +81,9 @@ export function paintTerrain(map) {
         ctx.fillRect(px + 4, py + 7, 8, 2);
       }
     }
+  }
 
-  // Отрисовка уличных объектов (префабы)
+  // ========== Отрисовка уличных объектов (префабы) ==========
   if (map.objects) {
     for (const obj of map.objects) {
       if (!obj.isCollision) {
