@@ -134,34 +134,54 @@ export function generateWorld(seed) {
     }
 
   // ---------- фаза 3: кластеры домов внутри острова ----------
-  // Генерируем здания: каждое здание — кластер из 2-6 тайлов домов.
+  // Генерируем здания: каждое здание — прямоугольный блок минимум 3×3 тайла.
   // Здания имеют разную высоту (1-3 этажа), окна и неоновые вывески.
   const SIGN_TYPES = ["bar", "shop", "hotel", "clinic", "casino", "neon"];
   const SIGN_COLORS = ["#ff4757", "#6fd6ff", "#ffb347", "#7dff8a", "#d6f6ff"];
   
-  for (let i = 0; i < 35; i++) {
+  for (let i = 0; i < 25; i++) {
     const a = rng() * Math.PI * 2;
     const rr = 16 + rng() * 30;
     const cx = Math.round(C + Math.cos(a) * rr);
     const cy = Math.round(C + Math.sin(a) * rr);
     
-    // Размер здания: 2-6 тайлов
-    const buildingSize = 2 + Math.floor(rng() * 5);
+    // Размер здания: от 3×3 до 6×6 тайлов
+    const width = 3 + Math.floor(rng() * 4); // 3-6
+    const depth = 3 + Math.floor(rng() * 4); // 3-6
     const height = 1 + Math.floor(rng() * 3); // 1-3 этажа
     const hasSign = rng() < 0.4; // 40% шанс вывески
     const signType = SIGN_TYPES[Math.floor(rng() * SIGN_TYPES.length)];
     const signColor = SIGN_COLORS[Math.floor(rng() * SIGN_COLORS.length)];
     
-    // Генерируем форму здания (прямоугольник с рандомными пропусками)
+    // Проверяем, что здание помещается на карте
+    const startX = cx - Math.floor(width / 2);
+    const startY = cy - Math.floor(depth / 2);
+    
+    if (startX < 0 || startY < 0 || startX + width >= MAP_TILES || startY + depth >= MAP_TILES) {
+      continue;
+    }
+    
+    // Проверяем, что все тайлы проходимы (снег или лёд)
+    let canPlace = true;
+    for (let dy = 0; dy < depth && canPlace; dy++) {
+      for (let dx = 0; dx < width && canPlace; dx++) {
+        const tx = startX + dx;
+        const ty = startY + dy;
+        const tile = map.get(tx, ty);
+        if (tile === T.HOUSE || tile === T.TREE) {
+          canPlace = false;
+        }
+      }
+    }
+    
+    if (!canPlace) continue;
+    
+    // Размещаем здание
     const tiles = [];
-    for (let b = 0; b < buildingSize; b++) {
-      const bx = Math.round(cx + (rng() - 0.5) * 3);
-      const by = Math.round(cy + (rng() - 0.5) * 3);
-      const tx = bx;
-      const ty = by;
-      const ii = ty * MAP_TILES + tx;
-      if (tx < 0 || ty < 0 || tx >= MAP_TILES || ty >= MAP_TILES) continue;
-      if (carved[ii] && map.get(tx, ty) !== T.ICE_SMOOTH && map.get(tx, ty) !== T.HOUSE) {
+    for (let dy = 0; dy < depth; dy++) {
+      for (let dx = 0; dx < width; dx++) {
+        const tx = startX + dx;
+        const ty = startY + dy;
         map.set(tx, ty, T.HOUSE);
         tiles.push({ tx, ty });
       }
@@ -180,6 +200,8 @@ export function generateWorld(seed) {
         hasSign: hasSign && tiles.indexOf({ tx, ty }) === 0, // вывеска только на первом тайле
         signType,
         signColor,
+        buildingWidth: width,
+        buildingDepth: depth,
       });
     }
   }

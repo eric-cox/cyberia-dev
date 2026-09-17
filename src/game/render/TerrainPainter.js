@@ -123,7 +123,23 @@ function paintHouse(ctx, map, tx, ty, px, py, rng) {
   const house = map.houseAt(tx, ty);
   if (!house) return;
   
-  const { height, windows, hasSign, signType, signColor } = house;
+  const { height, windows, hasSign, signType, signColor, buildingWidth, buildingDepth } = house;
+  
+  // Определяем позицию этого тайла внутри здания
+  // Находим верхний левый угол здания
+  let buildingStartX = tx;
+  let buildingStartY = ty;
+  
+  // Ищем начало здания, двигаясь влево и вверх
+  while (buildingStartX > 0 && map.houseAt(buildingStartX - 1, ty)?.buildingWidth === buildingWidth) {
+    buildingStartX--;
+  }
+  while (buildingStartY > 0 && map.houseAt(tx, buildingStartY - 1)?.buildingDepth === buildingDepth) {
+    buildingStartY--;
+  }
+  
+  const localX = tx - buildingStartX;
+  const localY = ty - buildingStartY;
   
   // Базовый цвет здания (тёмно-серый с вариациями)
   const baseColor = rng() < 0.5 ? "#2a3444" : "#323e4f";
@@ -134,23 +150,20 @@ function paintHouse(ctx, map, tx, ty, px, py, rng) {
   ctx.fillStyle = baseColor;
   ctx.fillRect(px, py, TILE, TILE);
   
-  // Тень слева (если здание выше соседа)
-  const leftHouse = map.houseAt(tx - 1, ty);
-  if (!leftHouse || leftHouse.height < height) {
+  // Тень слева (если это левая граница здания)
+  if (localX === 0) {
     ctx.fillStyle = darkColor;
     ctx.fillRect(px, py, 2, TILE);
   }
   
-  // Свет справа (если здание выше соседа)
-  const rightHouse = map.houseAt(tx + 1, ty);
-  if (!rightHouse || rightHouse.height < height) {
+  // Свет справа (если это правая граница здания)
+  if (localX === buildingWidth - 1) {
     ctx.fillStyle = lightColor;
     ctx.fillRect(px + TILE - 2, py, 2, TILE);
   }
   
   // Крыша (тёмная полоса сверху)
-  const topHouse = map.houseAt(tx, ty - 1);
-  if (!topHouse) {
+  if (localY === 0) {
     ctx.fillStyle = darkColor;
     ctx.fillRect(px, py, TILE, 3);
     // Снег на крыше
@@ -158,38 +171,40 @@ function paintHouse(ctx, map, tx, ty, px, py, rng) {
     ctx.fillRect(px + 1, py, TILE - 2, 1);
   }
   
-  // Окна (рисуем в зависимости от высоты здания)
-  const windowHeight = Math.floor(TILE / (height + 1));
-  const windowWidth = 3;
-  const windowSpacing = Math.floor(TILE / 3);
-  
-  for (let floor = 0; floor < height; floor++) {
-    for (let w = 0; w < 2; w++) {
-      const windowIndex = floor * 2 + w;
-      const isLit = windows[windowIndex];
-      const wx = px + windowSpacing * (w + 0.5) - windowWidth / 2;
-      const wy = py + 4 + floor * windowHeight;
-      
-      if (isLit) {
-        // Горящее окно (тёплый жёлтый свет)
-        ctx.fillStyle = "#ffb347";
-        ctx.fillRect(wx, wy, windowWidth, windowHeight - 2);
-        // Свечение вокруг окна
-        ctx.fillStyle = "rgba(255, 179, 71, 0.3)";
-        ctx.fillRect(wx - 1, wy - 1, windowWidth + 2, windowHeight);
-      } else {
-        // Тёмное окно
-        ctx.fillStyle = "#0a0f1e";
-        ctx.fillRect(wx, wy, windowWidth, windowHeight - 2);
+  // Окна (рисуем только на фасадах - верхняя и нижняя границы здания)
+  if (localY === 0 || localY === buildingDepth - 1) {
+    const windowHeight = Math.floor(TILE / (height + 1));
+    const windowWidth = 3;
+    const windowSpacing = Math.floor(TILE / 3);
+    
+    for (let floor = 0; floor < height; floor++) {
+      for (let w = 0; w < 2; w++) {
+        const windowIndex = floor * 2 + w;
+        const isLit = windows[windowIndex];
+        const wx = px + windowSpacing * (w + 0.5) - windowWidth / 2;
+        const wy = py + 4 + floor * windowHeight;
+        
+        if (isLit) {
+          // Горящее окно (тёплый жёлтый свет)
+          ctx.fillStyle = "#ffb347";
+          ctx.fillRect(wx, wy, windowWidth, windowHeight - 2);
+          // Свечение вокруг окна
+          ctx.fillStyle = "rgba(255, 179, 71, 0.3)";
+          ctx.fillRect(wx - 1, wy - 1, windowWidth + 2, windowHeight);
+        } else {
+          // Тёмное окно
+          ctx.fillStyle = "#0a0f1e";
+          ctx.fillRect(wx, wy, windowWidth, windowHeight - 2);
+        }
       }
     }
   }
   
-  // Неоновая вывеска (если есть)
-  if (hasSign && signType) {
+  // Неоновая вывеска (если есть и это первый тайл здания)
+  if (hasSign && signType && localX === 0 && localY === 0) {
     const signY = py + TILE - 6;
     const signX = px + 2;
-    const signWidth = TILE - 4;
+    const signWidth = TILE * buildingWidth - 4;
     const signHeight = 4;
     
     // Фон вывески (тёмный)
