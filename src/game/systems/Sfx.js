@@ -193,7 +193,7 @@ export class Sfx {
   // voice = { freq, wave, v, dur }.
   // Высокие freq (≥4000) — тонкий писк с быстрым вибрато
   // (мыши, мелкие твари); низкие — утробный рык с суб-грохотом
-  // (големы, носороги). Чем меньше и слабее зверь, тем выше писк.
+  // (ИИ-боты, роботы-уборщики). Чем меньше и слабее зверь, тем выше писк.
   growl(voice, soft = false) {
     if (!this.ctx || this.muted || !voice) return;
     const v = soft ? voice.v * 0.4 : voice.v;
@@ -275,7 +275,7 @@ export class Sfx {
     g.connect(this.master);
     o.start(t0);
     o.stop(t0 + dur + 0.02);
-    // суб-грохот для самых низких (голем)
+    // суб-грохот для самых низких (ИИ-бот)
     if (freq < 100 && this.noiseBuf) {
       const src = this.ctx.createBufferSource();
       src.buffer = this.noiseBuf;

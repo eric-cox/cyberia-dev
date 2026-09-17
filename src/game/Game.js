@@ -83,7 +83,7 @@ export default class Game {
     b.on("kill", (e) => {
       this.sfx.kill();
       if (e.voice) this.sfx.deathVoice(e.voice); // предсмертный вопль, +500мс
-      if (e.type === "golem") this.camera.addTrauma(0.65);
+      if (e.type === "awakened") this.camera.addTrauma(0.65);
     });
     b.on("hurt", () => {
       this.sfx.hurt();
@@ -98,7 +98,7 @@ export default class Game {
     });
     b.on("growl", (e) => {
       this.sfx.growl(e.voice, e.soft);
-      // низкий рёв сотрясает экран (голем, носорог)
+      // низкий рёв сотрясает экран (ИИ-бот, робот-уборщик)
       if (e.voice && e.voice.freq < 100 && !e.soft) this.camera.addTrauma(0.3);
     });
     b.on("heartbeat", () => this.sfx.heartbeat());

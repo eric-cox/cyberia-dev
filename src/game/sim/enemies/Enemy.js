@@ -35,7 +35,7 @@ export class Enemy extends Entity {
     this.attackCooldown = 1 + rng() * 1.5;
     this.windupTimer = 0;
     this.strikeTimer = 0;
-    this.ramCooldown = 0; // пауза между повторными ударами тарана (носорог)
+    this.ramCooldown = 0; // пауза между повторными ударами тарана (робот-уборщик)
     this.knockX = 0; // импульс отдачи от удара игрока
     this.knockY = 0;
     this.growled = false;

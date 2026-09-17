@@ -57,17 +57,17 @@ export class Renderer {
       texts.add(e.x, e.y - 16, "-" + e.dmg, "#ffd9ac");
     });
     bus.on("kill", (e) => {
-      const isGolem = e.type === "golem";
-      particles.burst(e.x, e.y - (isGolem ? 40 : 6), {
-        n: isGolem ? 46 : 16,
-        colors: isGolem
+      const isAwakened = e.type === "awakened";
+      particles.burst(e.x, e.y - (isAwakened ? 40 : 6), {
+        n: isAwakened ? 46 : 16,
+        colors: isAwakened
           ? ["#6fd6ff", "#a9e8ff", "#dfeaf7", "#4a6288", "#e8f2ff"]
           : ["#c23b3b", "#8a2a2a", "#e8f2ff", "#7d8f82"],
-        speed: isGolem ? 150 : 100,
-        life: isGolem ? 0.9 : 0.6,
-        size: isGolem ? 2 : 1,
+        speed: isAwakened ? 150 : 100,
+        life: isAwakened ? 0.9 : 0.6,
+        size: isAwakened ? 2 : 1,
       });
-      texts.add(e.x, e.y - (isGolem ? 90 : 24), e.name.toUpperCase() + " ПАЛ", isGolem ? "#6fd6ff" : "#9fd8ff");
+      texts.add(e.x, e.y - (isAwakened ? 90 : 24), e.name.toUpperCase() + " ПАЛ", isAwakened ? "#6fd6ff" : "#9fd8ff");
     });
     bus.on("hurt", (e) => {
       particles.burst(e.x, e.y - 6, {
@@ -255,10 +255,10 @@ export class Renderer {
     }
     // мутанты (гиганты — крупные метки)
     for (const e of sim.enemies) {
-      if (e.type === "golem") {
+      if (e.type === "awakened") {
         ctx.fillStyle = blink ? "#6fd6ff" : "#a9e8ff";
         ctx.fillRect((e.x / TILE) * scale - 2, (e.y / TILE) * scale - 2, 6, 6);
-      } else if (e.type === "rhino") {
+      } else if (e.type === "sweeper") {
         ctx.fillStyle = "#d6f6ff";
         ctx.fillRect((e.x / TILE) * scale - 1, (e.y / TILE) * scale - 1, 4, 4);
       } else {
