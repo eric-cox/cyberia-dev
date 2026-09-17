@@ -52,42 +52,9 @@ export function paintTerrain(map) {
         }
       }
 
-      if (t === T.ROCK) {
-        // сплошная скальная масса — монолитная стена;
-        // одиночные камни — валуны
-        const sealed =
-          map.get(tx, ty - 1) === T.ROCK &&
-          map.get(tx, ty + 1) === T.ROCK &&
-          map.get(tx - 1, ty) === T.ROCK &&
-          map.get(tx + 1, ty) === T.ROCK;
-        if (sealed) {
-          const o = Math.floor(rng() * 3);
-          ctx.fillStyle = "#2c3a52";
-          ctx.fillRect(px, py, TILE, TILE);
-          ctx.fillStyle = "#3d4d6b";
-          ctx.fillRect(px + 1, py + 1, TILE - 2, TILE - 2);
-          ctx.fillStyle = "#55688a";
-          ctx.fillRect(px + 2, py + 2 + (o % 2), 5, 4);
-          ctx.fillStyle = "#232e42";
-          ctx.fillRect(px + 2, py + 12, TILE - 4, 3);
-          // редкие снежные прожилки в толще стены
-          if (rng() < 0.3) {
-            ctx.fillStyle = "#c9d8ec";
-            ctx.fillRect(px + 2 + o, py + 6, 4 + o, 1);
-          }
-        } else {
-          const o = Math.floor(rng() * 3);
-          ctx.fillStyle = "#3d4d6b";
-          ctx.fillRect(px + 1, py + 2, 14, 13);
-          ctx.fillStyle = "#55688a";
-          ctx.fillRect(px + 1 + o, py + 1, 13 - o, 11);
-          ctx.fillStyle = "#7d92b5";
-          ctx.fillRect(px + 2 + o, py + 2, 6, 3);
-          ctx.fillStyle = "#e8f2ff";
-          ctx.fillRect(px + 2, py + 1, 9 - o, 2);
-          ctx.fillStyle = "#2f3d54";
-          ctx.fillRect(px + 2, py + 13, 12, 2);
-        }
+      if (t === T.HOUSE) {
+        // отрисовка дома с окнами и неоновыми вывесками
+        paintHouse(ctx, map, tx, ty, px, py, rng);
       } else if (t === T.TREE) {
         // тень дерева (крона рисуется спрайтом в проходе сущностей)
         ctx.fillStyle = "rgba(10,15,30,0.32)";
@@ -151,6 +118,134 @@ function paintIce(ctx, map, tx, ty, px, py, smooth, rng) {
   if (!ice(tx + 1, ty)) ctx.fillRect(px + TILE - 1, py, 1, TILE);
 }
 
+// ---------- отрисовка дома с окнами и неоновыми вывесками ----------
+function paintHouse(ctx, map, tx, ty, px, py, rng) {
+  const house = map.houseAt(tx, ty);
+  if (!house) return;
+  
+  const { height, windows, hasSign, signType, signColor } = house;
+  
+  // Базовый цвет здания (тёмно-серый с вариациями)
+  const baseColor = rng() < 0.5 ? "#2a3444" : "#323e4f";
+  const darkColor = "#1a2028";
+  const lightColor = "#3d4d6b";
+  
+  // Основание здания
+  ctx.fillStyle = baseColor;
+  ctx.fillRect(px, py, TILE, TILE);
+  
+  // Тень слева (если здание выше соседа)
+  const leftHouse = map.houseAt(tx - 1, ty);
+  if (!leftHouse || leftHouse.height < height) {
+    ctx.fillStyle = darkColor;
+    ctx.fillRect(px, py, 2, TILE);
+  }
+  
+  // Свет справа (если здание выше соседа)
+  const rightHouse = map.houseAt(tx + 1, ty);
+  if (!rightHouse || rightHouse.height < height) {
+    ctx.fillStyle = lightColor;
+    ctx.fillRect(px + TILE - 2, py, 2, TILE);
+  }
+  
+  // Крыша (тёмная полоса сверху)
+  const topHouse = map.houseAt(tx, ty - 1);
+  if (!topHouse) {
+    ctx.fillStyle = darkColor;
+    ctx.fillRect(px, py, TILE, 3);
+    // Снег на крыше
+    ctx.fillStyle = "#dfe9f5";
+    ctx.fillRect(px + 1, py, TILE - 2, 1);
+  }
+  
+  // Окна (рисуем в зависимости от высоты здания)
+  const windowHeight = Math.floor(TILE / (height + 1));
+  const windowWidth = 3;
+  const windowSpacing = Math.floor(TILE / 3);
+  
+  for (let floor = 0; floor < height; floor++) {
+    for (let w = 0; w < 2; w++) {
+      const windowIndex = floor * 2 + w;
+      const isLit = windows[windowIndex];
+      const wx = px + windowSpacing * (w + 0.5) - windowWidth / 2;
+      const wy = py + 4 + floor * windowHeight;
+      
+      if (isLit) {
+        // Горящее окно (тёплый жёлтый свет)
+        ctx.fillStyle = "#ffb347";
+        ctx.fillRect(wx, wy, windowWidth, windowHeight - 2);
+        // Свечение вокруг окна
+        ctx.fillStyle = "rgba(255, 179, 71, 0.3)";
+        ctx.fillRect(wx - 1, wy - 1, windowWidth + 2, windowHeight);
+      } else {
+        // Тёмное окно
+        ctx.fillStyle = "#0a0f1e";
+        ctx.fillRect(wx, wy, windowWidth, windowHeight - 2);
+      }
+    }
+  }
+  
+  // Неоновая вывеска (если есть)
+  if (hasSign && signType) {
+    const signY = py + TILE - 6;
+    const signX = px + 2;
+    const signWidth = TILE - 4;
+    const signHeight = 4;
+    
+    // Фон вывески (тёмный)
+    ctx.fillStyle = "#0a0f1e";
+    ctx.fillRect(signX, signY, signWidth, signHeight);
+    
+    // Неоновый текст/символ
+    ctx.fillStyle = signColor;
+    drawSignSymbol(ctx, signType, signX + 1, signY + 1, signWidth - 2, signHeight - 2);
+    
+    // Свечение вокруг вывески
+    ctx.fillStyle = signColor + "40"; // 25% прозрачности
+    ctx.fillRect(signX - 1, signY - 1, signWidth + 2, signHeight + 2);
+  }
+}
+
+// ---------- отрисовка символа неоновой вывески ----------
+function drawSignSymbol(ctx, type, x, y, w, h) {
+  switch (type) {
+    case "bar":
+      // Символ бокала
+      ctx.fillRect(x + w / 2 - 1, y, 2, h);
+      ctx.fillRect(x + w / 2 - 2, y + h - 1, 4, 1);
+      break;
+    case "shop":
+      // Символ корзины
+      ctx.fillRect(x + 1, y + 1, w - 2, h - 2);
+      break;
+    case "hotel":
+      // Символ "H"
+      ctx.fillRect(x + 1, y, 1, h);
+      ctx.fillRect(x + w - 2, y, 1, h);
+      ctx.fillRect(x + 1, y + h / 2, w - 2, 1);
+      break;
+    case "clinic":
+      // Символ креста
+      ctx.fillRect(x + w / 2 - 1, y, 2, h);
+      ctx.fillRect(x, y + h / 2 - 1, w, 2);
+      break;
+    case "casino":
+      // Символ игральной кости (точки)
+      ctx.fillRect(x + 1, y + 1, 1, 1);
+      ctx.fillRect(x + w - 2, y + 1, 1, 1);
+      ctx.fillRect(x + w / 2, y + h / 2, 1, 1);
+      ctx.fillRect(x + 1, y + h - 2, 1, 1);
+      ctx.fillRect(x + w - 2, y + h - 2, 1, 1);
+      break;
+    case "neon":
+      // Абстрактный неоновый символ
+      ctx.fillRect(x, y, w, 1);
+      ctx.fillRect(x, y + h - 1, w, 1);
+      ctx.fillRect(x + w / 2 - 1, y, 2, h);
+      break;
+  }
+}
+
 // ---------- база миникарты (1px на тайл) ----------
 export function paintMinimapBase(map) {
   const cv = document.createElement("canvas");
@@ -161,7 +256,7 @@ export function paintMinimapBase(map) {
     [T.SNOW]: "#c9d8ec",
     [T.SNOW_DEEP]: "#b0c3de",
     [T.SNOW_VERY_DEEP]: "#93aad0",
-    [T.ROCK]: "#3d4d6b",
+    [T.HOUSE]: "#3d4d6b",
     [T.ICE]: "#7fb2d9",
     [T.ICE_SMOOTH]: "#a9d7f2",
     [T.TREE]: "#5a718f",

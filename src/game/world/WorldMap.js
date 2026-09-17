@@ -22,6 +22,7 @@ export class WorldMap {
     this.tiles = tiles; // Uint8Array size*size
     this.decor = []; // { kind:"tree", x, y, sway }
     this.bands = null; // индекс: band[радиус] → [индексы проходимых ячеек]
+    this.houseData = new Map(); // метаданные домов: key = "x,y" → { height, windows, sign }
   }
 
   get widthPx() {
@@ -37,7 +38,7 @@ export class WorldMap {
 
   // --- тайлы ---
   get(tx, ty) {
-    if (tx < 0 || ty < 0 || tx >= this.size || ty >= this.size) return T.ROCK;
+    if (tx < 0 || ty < 0 || tx >= this.size || ty >= this.size) return T.HOUSE;
     return this.tiles[ty * this.size + tx];
   }
   set(tx, ty, v) {
@@ -50,6 +51,10 @@ export class WorldMap {
   // Ячейка (с параметрами движения) в мировой точке
   cellAt(x, y) {
     return cellOf(this.tileAt(x, y));
+  }
+  // Метаданные дома по координатам тайла (null если не дом)
+  houseAt(tx, ty) {
+    return this.houseData.get(`${tx},${ty}`) || null;
   }
 
   // --- физика ---

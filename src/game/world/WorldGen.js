@@ -7,10 +7,14 @@
 //  прорастания ячейки зависит от расстояния до центра:
 //    • у центра  — p = 1: открытые снежные поля;
 //    • к краю    — p падает: фронт вязнет, и непройденные
-//                  ячейки становятся СТЕНОЙ из скал.
+//                  ячейки становятся СТЕНОЙ из домов.
 //  Граница острова неровная (угловой шум) — фьорды, косы,
-//  тупики. Внутри острова: глубина снега и валуны тоже
+//  тупики. Внутри острова: глубина снега и дома тоже
 //  смещены к краям, озёра льда, мёртвые деревья.
+//
+//  Дома генерируются кластерами: соседние ячейки домов
+//  объединяются в одно здание. Каждое здание имеет метаданные:
+//  высота (1-3 этажа), окна (горят/не горят), неоновые вывески.
 // ============================================================
 import { MAP_TILES, TILE } from "../core/Constants.js";
 import { T } from "./tiles.js";
@@ -111,7 +115,7 @@ export function generateWorld(seed) {
     for (let x = 0; x < MAP_TILES; x++) {
       const i = y * MAP_TILES + x;
       if (!carved[i]) {
-        map.tiles[i] = T.ROCK; // непройденное — стена
+        map.tiles[i] = T.HOUSE; // непройденное — стена из домов
         continue;
       }
       const dist = distC(x, y);
@@ -124,32 +128,59 @@ export function generateWorld(seed) {
       if (dn > 0.55 && depth < 2 && rng() < (dn - 0.55) * 1.4) depth++;
       map.tiles[i] = T.SNOW + depth;
 
-      // валуны: вероятность растёт к краю (в центре чисто)
+      // дома: вероятность растёт к краю (в центре чисто)
       if (dist > 12 && rng() < Math.max(0, dn - 0.45) * 0.22)
-        map.tiles[i] = T.ROCK;
+        map.tiles[i] = T.HOUSE;
     }
 
-  // ---------- фаза 3: скальные гряды внутри острова ----------
-  for (let i = 0; i < 40; i++) {
+  // ---------- фаза 3: кластеры домов внутри острова ----------
+  // Генерируем здания: каждое здание — кластер из 2-6 тайлов домов.
+  // Здания имеют разную высоту (1-3 этажа), окна и неоновые вывески.
+  const SIGN_TYPES = ["bar", "shop", "hotel", "clinic", "casino", "neon"];
+  const SIGN_COLORS = ["#ff4757", "#6fd6ff", "#ffb347", "#7dff8a", "#d6f6ff"];
+  
+  for (let i = 0; i < 35; i++) {
     const a = rng() * Math.PI * 2;
     const rr = 16 + rng() * 30;
     const cx = Math.round(C + Math.cos(a) * rr);
     const cy = Math.round(C + Math.sin(a) * rr);
-    const blobs = 2 + Math.floor(rng() * 5);
-    for (let b = 0; b < blobs; b++) {
-      const bx = Math.round(cx + (rng() - 0.5) * 4);
-      const by = Math.round(cy + (rng() - 0.5) * 4);
-      const r = 0.8 + rng() * 1.3;
-      for (let y = -2; y <= 2; y++)
-        for (let x = -2; x <= 2; x++) {
-          if (x * x + y * y > r * r) continue;
-          const tx = bx + x;
-          const ty = by + y;
-          const ii = ty * MAP_TILES + tx;
-          if (tx < 0 || ty < 0 || tx >= MAP_TILES || ty >= MAP_TILES) continue;
-          if (carved[ii] && map.get(tx, ty) !== T.ICE_SMOOTH)
-            map.set(tx, ty, T.ROCK);
-        }
+    
+    // Размер здания: 2-6 тайлов
+    const buildingSize = 2 + Math.floor(rng() * 5);
+    const height = 1 + Math.floor(rng() * 3); // 1-3 этажа
+    const hasSign = rng() < 0.4; // 40% шанс вывески
+    const signType = SIGN_TYPES[Math.floor(rng() * SIGN_TYPES.length)];
+    const signColor = SIGN_COLORS[Math.floor(rng() * SIGN_COLORS.length)];
+    
+    // Генерируем форму здания (прямоугольник с рандомными пропусками)
+    const tiles = [];
+    for (let b = 0; b < buildingSize; b++) {
+      const bx = Math.round(cx + (rng() - 0.5) * 3);
+      const by = Math.round(cy + (rng() - 0.5) * 3);
+      const tx = bx;
+      const ty = by;
+      const ii = ty * MAP_TILES + tx;
+      if (tx < 0 || ty < 0 || tx >= MAP_TILES || ty >= MAP_TILES) continue;
+      if (carved[ii] && map.get(tx, ty) !== T.ICE_SMOOTH && map.get(tx, ty) !== T.HOUSE) {
+        map.set(tx, ty, T.HOUSE);
+        tiles.push({ tx, ty });
+      }
+    }
+    
+    // Сохраняем метаданные для каждого тайла здания
+    for (const { tx, ty } of tiles) {
+      const windows = [];
+      // Каждое окно имеет 60% шанс гореть
+      for (let w = 0; w < height * 2; w++) {
+        windows.push(rng() < 0.6);
+      }
+      map.houseData.set(`${tx},${ty}`, {
+        height,
+        windows,
+        hasSign: hasSign && tiles.indexOf({ tx, ty }) === 0, // вывеска только на первом тайле
+        signType,
+        signColor,
+      });
     }
   }
 
@@ -197,7 +228,7 @@ export function generateWorld(seed) {
     for (let x = -4; x <= 4; x++) {
       if (x * x + y * y > 18) continue;
       const t = map.get(C + x, C + y);
-      if (t === T.ROCK || t === T.TREE) map.set(C + x, C + y, T.SNOW);
+      if (t === T.HOUSE || t === T.TREE) map.set(C + x, C + y, T.SNOW);
     }
 
   // индекс проходимых ячеек по радиальным поясам —
