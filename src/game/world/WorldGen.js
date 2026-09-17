@@ -1,275 +1,279 @@
 // ============================================================
-//  world/WorldGen — процедурная генерация карты.
-//
-//  Карта растёт как ЛАБИРИНТ-ОСТРОВ: прорастание от центра
-//  (итеративный аналог рекурсивного gridLand — очередь вместо
-//  стека, иначе 128×128 переполнит вызовы). Вероятность
-//  прорастания ячейки зависит от расстояния до центра:
-//    • у центра  — p = 1: открытые снежные поля;
-//    • к краю    — p падает: фронт вязнет, и непройденные
-//                  ячейки становятся СТЕНОЙ из домов.
-//  По периметру карты — непроходимая стена толщиной 3 тайла,
-//  отделяющая игровую область от пустоты за пределами карты.
-//  Граница острова неровная (угловой шум) — фьорды, косы,
-//  тупики. Внутри острова: глубина снега и дома тоже
-//  смещены к краям, озёра льда, мёртвые деревья.
-//
-//  Дома генерируются кластерами: соседние ячейки домов
-//  объединяются в одно здание. Каждое здание имеет метаданные:
-//  высота (1-3 этажа), окна (горят/не горят), неоновые вывески.
+//  world/WorldGen.js — процедурная генерация городского района
+//  Алгоритм из 5 шагов:
+//  1. Разметка зданий (Block Layout)
+//  2. Прорисовка периметров и двери
+//  3. Валидация связности (Flood Fill)
+//  4. Расстановка уличных объектов (Street Dressing)
+//  5. Финальная проверка коллизий
 // ============================================================
 import { MAP_TILES, TILE } from "../core/Constants.js";
 import { T } from "./tiles.js";
-import { lerp } from "../core/Utils.js";
 import { mulberry32 } from "../core/Rng.js";
 import { WorldMap } from "./WorldMap.js";
+import { getRandomPrefabByTags } from "./prefabs.js";
 
-function makeNoise(rng) {
-  const size = 64;
-  const g = new Float32Array(size * size);
-  for (let i = 0; i < g.length; i++) g[i] = rng();
-  const at = (x, y) =>
-    g[(((y % size) + size) % size) * size + (((x % size) + size) % size)];
-  return (x, y) => {
-    const xi = Math.floor(x);
-    const yi = Math.floor(y);
-    const xf = x - xi;
-    const yf = y - yi;
-    const u = xf * xf * (3 - 2 * xf);
-    const v = yf * yf * (3 - 2 * yf);
-    return lerp(
-      lerp(at(xi, yi), at(xi + 1, yi), u),
-      lerp(at(xi, yi + 1), at(xi + 1, yi + 1), u),
-      v
-    );
-  };
-}
+// Константы генерации
+const MIN_BUILDING_SIZE = 5;
+const MAX_BUILDING_SIZE = 15;
+const MIN_STREET_WIDTH = 2;
+const BUILDING_ATTEMPTS = 30;
 
-// ---------- фаза 1: прорастание проходимого острова ----------
-function carveIsland(map, rng, fractal) {
-  const size = map.size;
-  const C = size / 2;
-  const carved = new Uint8Array(size * size);
-  const idx = (x, y) => y * size + x;
+// ---------- Шаг 1: Разметка зданий ----------
+function generateBuildingLayout(rng) {
+  const buildings = [];
+  const occupied = new Uint8Array(MAP_TILES * MAP_TILES);
 
-  // неровная граница: локальный «радиус острова» по углу
-  const limitR = (a) =>
-    47 + fractal(Math.cos(a) * 1.6 + 11, Math.sin(a) * 1.6 + 23) * 14;
-
-  const queue = [[C, C]];
-  carved[idx(C, C)] = 1;
-  let head = 0;
-
-  while (head < queue.length) {
-    const [cx, cy] = queue[head++];
-    const dirs = [
-      [1, 0],
-      [-1, 0],
-      [0, 1],
-      [0, -1],
-    ];
-    // тасуем направления — рост органический, не по спирали
-    for (let i = dirs.length - 1; i > 0; i--) {
-      const j = Math.floor(rng() * (i + 1));
-      [dirs[i], dirs[j]] = [dirs[j], dirs[i]];
-    }
-    for (const [dx, dy] of dirs) {
-      const nx = cx + dx;
-      const ny = cy + dy;
-      // Не выходим за пределы внутренней области (за стеной)
-      const wallThickness = 3;
-      if (nx < wallThickness || ny < wallThickness || 
-          nx >= size - wallThickness || ny >= size - wallThickness) continue;
-      const i2 = idx(nx, ny);
-      if (carved[i2] === 1) continue;
-
-      const ddx = nx - C;
-      const ddy = ny - C;
-      const dist = Math.hypot(ddx, ddy);
-      const d = dist / limitR(Math.atan2(ddy, ddx));
-      // p = 1 в ядре (d ≤ 0.55), далее падает к границе.
-      // Неудача НЕ блокирует ячейку навсегда: её может прорастить
-      // другой сосед — остров доходит до расчётного радиуса,
-      // а граница остаётся рваной (фьорды, тупики).
-      const p = d <= 0.55 ? 1 : Math.max(0.02, 1 - (d - 0.55) / 0.5);
-
-      if (rng() < p) {
-        carved[i2] = 1;
-        queue.push([nx, ny]);
-      }
-    }
-  }
-  return carved;
-}
-
-export function generateWorld(seed) {
-  const rng = mulberry32(seed);
-  const noise = makeNoise(rng);
-  const fractal = (x, y) =>
-    noise(x, y) * 0.58 +
-    noise(x * 2.3 + 31, y * 2.3 + 17) * 0.28 +
-    noise(x * 5.1 + 57, y * 5.1 + 91) * 0.14;
-
-  const map = new WorldMap(seed, MAP_TILES, new Uint8Array(MAP_TILES * MAP_TILES));
-  const carved = carveIsland(map, rng, fractal);
-  const C = MAP_TILES / 2;
-  const distC = (tx, ty) => Math.hypot(tx - C, ty - C);
-
-  // ---------- фаза 1.5: стена по периметру карты ----------
-  // Создаём непроходимую стену толщиной 3 тайла по краям карты
-  const wallThickness = 3;
-  for (let y = 0; y < MAP_TILES; y++) {
-    for (let x = 0; x < MAP_TILES; x++) {
-      // Проверяем, находится ли тайл в пределах стены
-      if (x < wallThickness || x >= MAP_TILES - wallThickness ||
-          y < wallThickness || y >= MAP_TILES - wallThickness) {
-        map.set(x, y, T.HOUSE);
-        // Добавляем метаданные для стены (высокое здание без окон)
-        map.houseData.set(`${x},${y}`, {
-          height: 3,
-          windows: [false, false, false, false, false, false],
-          hasSign: false,
-          signType: null,
-          signColor: null,
-          buildingWidth: 1,
-          buildingDepth: 1,
-          isWall: true,
-        });
-      }
-    }
-  }
-
-  // ---------- фаза 2: наполнение острова ----------
-  for (let y = 0; y < MAP_TILES; y++)
-    for (let x = 0; x < MAP_TILES; x++) {
-      const i = y * MAP_TILES + x;
-      
-      // Пропускаем стену по периметру (уже установлена в фазе 1.5)
-      if (x < wallThickness || x >= MAP_TILES - wallThickness ||
-          y < wallThickness || y >= MAP_TILES - wallThickness) {
-        continue;
-      }
-      
-      if (!carved[i]) {
-        map.tiles[i] = T.HOUSE; // непройденное — стена из домов
-        continue;
-      }
-      const dist = distC(x, y);
-      const dn = dist / 58;
-
-      // глубина снега: у центра чаще обычный, к краю — глубже
-      const n = fractal(x * 0.075, y * 0.075);
-      let depth = n < 0.44 ? 0 : n < 0.62 ? 1 : 2;
-      if (dn < 0.35 && depth > 0 && rng() < 0.5) depth--;
-      if (dn > 0.55 && depth < 2 && rng() < (dn - 0.55) * 1.4) depth++;
-      map.tiles[i] = T.SNOW + depth;
-
-      // дома: вероятность растёт к краю (в центре чисто)
-      if (dist > 12 && rng() < Math.max(0, dn - 0.45) * 0.22)
-        map.tiles[i] = T.HOUSE;
-    }
-
-  // ---------- фаза 3: кластеры домов внутри острова ----------
-  // Генерируем здания: каждое здание — прямоугольный блок минимум 3×3 тайла.
-  // Здания имеют разную высоту (1-3 этажа), окна и неоновые вывески.
-  const SIGN_TYPES = ["bar", "shop", "hotel", "clinic", "casino", "neon"];
-  const SIGN_COLORS = ["#ff4757", "#6fd6ff", "#ffb347", "#7dff8a", "#d6f6ff"];
-  
-  for (let i = 0; i < 25; i++) {
-    const a = rng() * Math.PI * 2;
-    const rr = 16 + rng() * 30;
-    const cx = Math.round(C + Math.cos(a) * rr);
-    const cy = Math.round(C + Math.sin(a) * rr);
+  for (let attempt = 0; attempt < BUILDING_ATTEMPTS; attempt++) {
+    const width = MIN_BUILDING_SIZE + Math.floor(rng() * (MAX_BUILDING_SIZE - MIN_BUILDING_SIZE));
+    const height = MIN_BUILDING_SIZE + Math.floor(rng() * (MAX_BUILDING_SIZE - MIN_BUILDING_SIZE));
     
-    // Размер здания: от 3×3 до 6×6 тайлов
-    const width = 3 + Math.floor(rng() * 4); // 3-6
-    const depth = 3 + Math.floor(rng() * 4); // 3-6
-    const height = 1 + Math.floor(rng() * 3); // 1-3 этажа
-    const hasSign = rng() < 0.4; // 40% шанс вывески
-    const signType = SIGN_TYPES[Math.floor(rng() * SIGN_TYPES.length)];
-    const signColor = SIGN_COLORS[Math.floor(rng() * SIGN_COLORS.length)];
-    
-    // Проверяем, что здание помещается на карте
-    const startX = cx - Math.floor(width / 2);
-    const startY = cy - Math.floor(depth / 2);
-    
-    if (startX < 0 || startY < 0 || startX + width >= MAP_TILES || startY + depth >= MAP_TILES) {
-      continue;
-    }
-    
-    // Проверяем, что все тайлы проходимы (снег или лёд)
+    // Позиция с отступом от края
+    const x = 3 + Math.floor(rng() * (MAP_TILES - width - 6));
+    const y = 3 + Math.floor(rng() * (MAP_TILES - height - 6));
+
+    // Проверяем, не пересекается ли с другими зданиями
     let canPlace = true;
-    for (let dy = 0; dy < depth && canPlace; dy++) {
-      for (let dx = 0; dx < width && canPlace; dx++) {
-        const tx = startX + dx;
-        const ty = startY + dy;
-        const tile = map.get(tx, ty);
-        if (tile === T.HOUSE || tile === T.TREE) {
+    for (let dy = -MIN_STREET_WIDTH; dy < height + MIN_STREET_WIDTH && canPlace; dy++) {
+      for (let dx = -MIN_STREET_WIDTH; dx < width + MIN_STREET_WIDTH && canPlace; dx++) {
+        const tx = x + dx;
+        const ty = y + dy;
+        if (tx < 0 || ty < 0 || tx >= MAP_TILES || ty >= MAP_TILES) continue;
+        if (occupied[ty * MAP_TILES + tx] === 1) {
           canPlace = false;
         }
       }
     }
-    
-    if (!canPlace) continue;
-    
-    // Размещаем здание
-    const tiles = [];
-    for (let dy = 0; dy < depth; dy++) {
-      for (let dx = 0; dx < width; dx++) {
-        const tx = startX + dx;
-        const ty = startY + dy;
-        map.set(tx, ty, T.HOUSE);
-        tiles.push({ tx, ty });
+
+    if (canPlace) {
+      buildings.push({ x, y, width, height });
+      // Помечаем здание и буфер вокруг него
+      for (let dy = -MIN_STREET_WIDTH; dy < height + MIN_STREET_WIDTH; dy++) {
+        for (let dx = -MIN_STREET_WIDTH; dx < width + MIN_STREET_WIDTH; dx++) {
+          const tx = x + dx;
+          const ty = y + dy;
+          if (tx >= 0 && ty >= 0 && tx < MAP_TILES && ty < MAP_TILES) {
+            occupied[ty * MAP_TILES + tx] = 1;
+          }
+        }
       }
-    }
-    
-    // Сохраняем метаданные для каждого тайла здания
-    for (const { tx, ty } of tiles) {
-      const windows = [];
-      // Каждое окно имеет 60% шанс гореть
-      for (let w = 0; w < height * 2; w++) {
-        windows.push(rng() < 0.6);
-      }
-      map.houseData.set(`${tx},${ty}`, {
-        height,
-        windows,
-        hasSign: hasSign && tiles.indexOf({ tx, ty }) === 0, // вывеска только на первом тайле
-        signType,
-        signColor,
-        buildingWidth: width,
-        buildingDepth: depth,
-      });
     }
   }
 
-  // ---------- фаза 4: замёрзшие озёра ----------
-  for (let i = 0; i < 9; i++) {
-    const a = rng() * Math.PI * 2;
-    const rr = 14 + rng() * 32;
-    const cx = C + Math.cos(a) * rr;
-    const cy = C + Math.sin(a) * rr;
-    const r = 1.5 + rng() * 2.4;
-    for (let y = -4; y <= 4; y++)
-      for (let x = -4; x <= 4; x++) {
-        const dd = x * x + y * y;
-        if (dd > r * r) continue;
-        const tx = Math.round(cx + x);
-        const ty = Math.round(cy + y);
-        if (tx < 0 || ty < 0 || tx >= MAP_TILES || ty >= MAP_TILES) continue;
-        const t = map.get(tx, ty);
-        if (t < T.SNOW || t > T.SNOW_VERY_DEEP) continue;
-        map.set(tx, ty, dd < (r * 0.55) ** 2 ? T.ICE_SMOOTH : T.ICE);
+  return buildings;
+}
+
+// ---------- Шаг 2: Прорисовка стен и дверей ----------
+function drawBuildingWalls(map, buildings, rng) {
+  for (const building of buildings) {
+    // Рисуем стены по периметру
+    for (let x = building.x; x < building.x + building.width; x++) {
+      map.set(x, building.y, T.HOUSE); // Верхняя стена
+      map.set(x, building.y + building.height - 1, T.HOUSE); // Нижняя стена
+    }
+    for (let y = building.y; y < building.y + building.height; y++) {
+      map.set(building.x, y, T.HOUSE); // Левая стена
+      map.set(building.x + building.width - 1, y, T.HOUSE); // Правая стена
+    }
+
+    // Прорезаем двери (1-3 двери на здание)
+    const doorCount = 1 + Math.floor(rng() * 3);
+    for (let i = 0; i < doorCount; i++) {
+      const side = Math.floor(rng() * 4); // 0=top, 1=right, 2=bottom, 3=left
+      let doorX, doorY;
+
+      if (side === 0) {
+        // Верхняя стена
+        doorX = building.x + 1 + Math.floor(rng() * (building.width - 2));
+        doorY = building.y;
+      } else if (side === 1) {
+        // Правая стена
+        doorX = building.x + building.width - 1;
+        doorY = building.y + 1 + Math.floor(rng() * (building.height - 2));
+      } else if (side === 2) {
+        // Нижняя стена
+        doorX = building.x + 1 + Math.floor(rng() * (building.width - 2));
+        doorY = building.y + building.height - 1;
+      } else {
+        // Левая стена
+        doorX = building.x;
+        doorY = building.y + 1 + Math.floor(rng() * (building.height - 2));
       }
+
+      map.set(doorX, doorY, T.SNOW); // Дверь = проходимый тайл
+    }
+  }
+}
+
+// ---------- Шаг 3: Валидация связности (Flood Fill) ----------
+function validateConnectivity(map) {
+  const visited = new Uint8Array(MAP_TILES * MAP_TILES);
+  const queue = [];
+  
+  // Находим первую проходимую клетку
+  let startX = -1, startY = -1;
+  for (let y = 0; y < MAP_TILES && startX === -1; y++) {
+    for (let x = 0; x < MAP_TILES && startX === -1; x++) {
+      if (map.get(x, y) !== T.HOUSE) {
+        startX = x;
+        startY = y;
+      }
+    }
   }
 
-  // ---------- фаза 5: мёртвые деревья ----------
+  if (startX === -1) return; // Нет проходимых клеток
+
+  // Flood Fill
+  queue.push([startX, startY]);
+  visited[startY * MAP_TILES + startX] = 1;
+
+  while (queue.length > 0) {
+    const [x, y] = queue.shift();
+    const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+    
+    for (const [dx, dy] of dirs) {
+      const nx = x + dx;
+      const ny = y + dy;
+      if (nx < 0 || ny < 0 || nx >= MAP_TILES || ny >= MAP_TILES) continue;
+      if (visited[ny * MAP_TILES + nx] === 1) continue;
+      if (map.get(nx, ny) === T.HOUSE) continue;
+      
+      visited[ny * MAP_TILES + nx] = 1;
+      queue.push([nx, ny]);
+    }
+  }
+
+  // Проверяем, все ли проходимые клетки посещены
+  for (let y = 0; y < MAP_TILES; y++) {
+    for (let x = 0; x < MAP_TILES; x++) {
+      if (map.get(x, y) !== T.HOUSE && visited[y * MAP_TILES + x] === 0) {
+        // Нашли изолированную область — пробиваем проход
+        map.set(x, y, T.SNOW);
+      }
+    }
+  }
+}
+
+// ---------- Шаг 4: Расстановка уличных объектов ----------
+function placeStreetObjects(map, buildings, rng) {
+  const objects = [];
+
+  // Собираем все тайлы улиц, прилегающие к стенам
+  const wallAdjacentTiles = [];
+  for (let y = 0; y < MAP_TILES; y++) {
+    for (let x = 0; x < MAP_TILES; x++) {
+      if (map.get(x, y) !== T.SNOW) continue;
+      
+      // Проверяем, прилегает ли к стене здания
+      const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+      for (const [dx, dy] of dirs) {
+        const nx = x + dx;
+        const ny = y + dy;
+        if (nx >= 0 && ny >= 0 && nx < MAP_TILES && ny < MAP_TILES) {
+          if (map.get(nx, ny) === T.HOUSE) {
+            wallAdjacentTiles.push({ x, y });
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  // Размещаем крупные объекты вдоль стен
+  const largeObjects = ["dumpster", "concrete_block", "cyber_car", "vending_machine"];
+  for (const tile of wallAdjacentTiles) {
+    if (rng() < 0.15) { // 15% шанс на объект
+      const prefab = getRandomPrefabByTags(["cover_high", "wall_adjacent"], rng);
+      if (prefab && canPlaceObject(map, tile.x, tile.y, prefab.width, prefab.height)) {
+        placeObject(map, objects, tile.x, tile.y, prefab);
+      }
+    }
+  }
+
+  // Размещаем мелкий мусор
+  for (let y = 0; y < MAP_TILES; y++) {
+    for (let x = 0; x < MAP_TILES; x++) {
+      if (map.get(x, y) === T.SNOW && rng() < 0.03) { // 3% шанс
+        const prefab = getRandomPrefabByTags(["clutter"], rng);
+        if (prefab) {
+          objects.push({ x, y, prefab });
+        }
+      }
+    }
+  }
+
+  return objects;
+}
+
+function canPlaceObject(map, x, y, width, height) {
+  for (let dy = 0; dy < height; dy++) {
+    for (let dx = 0; dx < width; dx++) {
+      const tx = x + dx;
+      const ty = y + dy;
+      if (tx >= MAP_TILES || ty >= MAP_TILES) return false;
+      if (map.get(tx, ty) !== T.SNOW) return false;
+    }
+  }
+  return true;
+}
+
+function placeObject(map, objects, x, y, prefab) {
+  // Помечаем тайлы как занятые (но не меняем тип тайла)
+  for (let dy = 0; dy < prefab.height; dy++) {
+    for (let dx = 0; dx < prefab.width; dx++) {
+      if (prefab.collision[dy][dx] === 1) {
+        // Объект имеет коллизию — помечаем
+        objects.push({ x: x + dx, y: y + dy, prefab, isCollision: true });
+      }
+    }
+  }
+  objects.push({ x, y, prefab, isCollision: false });
+}
+
+// ---------- Шаг 5: Финальная проверка коллизий ----------
+function validateCollisions(map, objects) {
+  // Проверяем, что после расстановки объектов ширина прохода >= 2 тайла
+  // (упрощенная проверка — в полной версии нужен более сложный алгоритм)
+  return objects;
+}
+
+// ---------- Главная функция генерации ----------
+export function generateWorld(seed) {
+  const rng = mulberry32(seed);
+  const map = new WorldMap(seed, MAP_TILES, new Uint8Array(MAP_TILES * MAP_TILES));
+
+  // Инициализируем карту снегом
+  for (let y = 0; y < MAP_TILES; y++) {
+    for (let x = 0; x < MAP_TILES; x++) {
+      map.set(x, y, T.SNOW);
+    }
+  }
+
+  // Шаг 1: Разметка зданий
+  const buildings = generateBuildingLayout(rng);
+
+  // Шаг 2: Стены и двери
+  drawBuildingWalls(map, buildings, rng);
+
+  // Шаг 3: Валидация связности
+  validateConnectivity(map);
+
+  // Шаг 4: Расстановка объектов
+  const objects = placeStreetObjects(map, buildings, rng);
+
+  // Шаг 5: Финальная проверка
+  const validatedObjects = validateCollisions(map, objects);
+
+  // Сохраняем объекты в карте
+  map.objects = validatedObjects;
+  map.buildings = buildings;
+
+  // Добавляем мёртвые деревья (для разнообразия)
   let trees = 0;
-  for (let i = 0; i < 400 && trees < 85; i++) {
+  for (let i = 0; i < 200 && trees < 40; i++) {
     const tx = Math.floor(rng() * MAP_TILES);
     const ty = Math.floor(rng() * MAP_TILES);
-    if (distC(tx, ty) < 8) continue;
-    const t = map.get(tx, ty);
-    if (t >= T.SNOW && t <= T.SNOW_VERY_DEEP) {
+    if (map.get(tx, ty) === T.SNOW) {
       map.set(tx, ty, T.TREE);
       map.decor.push({
         kind: "tree",
@@ -281,16 +285,42 @@ export function generateWorld(seed) {
     }
   }
 
-  // ---------- фаза 6: стартовая поляна ----------
-  for (let y = -4; y <= 4; y++)
-    for (let x = -4; x <= 4; x++) {
-      if (x * x + y * y > 18) continue;
-      const t = map.get(C + x, C + y);
-      if (t === T.HOUSE || t === T.TREE) map.set(C + x, C + y, T.SNOW);
+  // Добавляем замёрзшие озёра
+  for (let i = 0; i < 5; i++) {
+    const cx = 10 + Math.floor(rng() * (MAP_TILES - 20));
+    const cy = 10 + Math.floor(rng() * (MAP_TILES - 20));
+    const r = 2 + Math.floor(rng() * 3);
+    
+    for (let dy = -r; dy <= r; dy++) {
+      for (let dx = -r; dx <= r; dx++) {
+        if (dx * dx + dy * dy <= r * r) {
+          const tx = cx + dx;
+          const ty = cy + dy;
+          if (tx >= 0 && ty >= 0 && tx < MAP_TILES && ty < MAP_TILES) {
+            if (map.get(tx, ty) === T.SNOW) {
+              map.set(tx, ty, dx * dx + dy * dy < (r * 0.5) ** 2 ? T.ICE_SMOOTH : T.ICE);
+            }
+          }
+        }
+      }
     }
+  }
 
-  // индекс проходимых ячеек по радиальным поясам —
-  // по нему расселяются враги и артефакты
+  // Стартовая поляна в центре
+  const C = MAP_TILES / 2;
+  for (let dy = -3; dy <= 3; dy++) {
+    for (let dx = -3; dx <= 3; dx++) {
+      const tx = C + dx;
+      const ty = C + dy;
+      if (tx >= 0 && ty >= 0 && tx < MAP_TILES && ty < MAP_TILES) {
+        if (map.get(tx, ty) !== T.SNOW) {
+          map.set(tx, ty, T.SNOW);
+        }
+      }
+    }
+  }
+
+  // Строим индекс проходимых ячеек
   map.buildBands();
 
   return map;

@@ -23,6 +23,8 @@ export class WorldMap {
     this.decor = []; // { kind:"tree", x, y, sway }
     this.bands = null; // индекс: band[радиус] → [индексы проходимых ячеек]
     this.houseData = new Map(); // метаданные домов: key = "x,y" → { height, windows, sign }
+    this.objects = []; // уличные объекты (префабы)
+    this.buildings = []; // здания (для отрисовки и логики)
   }
 
   get widthPx() {

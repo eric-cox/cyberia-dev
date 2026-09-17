@@ -53,8 +53,8 @@ export function paintTerrain(map) {
       }
 
       if (t === T.HOUSE) {
-        // отрисовка дома с окнами и неоновыми вывесками
-        paintHouse(ctx, map, tx, ty, px, py, rng);
+        // отрисовка стены здания
+        paintBuildingWall(ctx, map, tx, ty, px, py, rng);
       } else if (t === T.TREE) {
         // тень дерева (крона рисуется спрайтом в проходе сущностей)
         ctx.fillStyle = "rgba(10,15,30,0.32)";
@@ -63,6 +63,16 @@ export function paintTerrain(map) {
         ctx.fillRect(px + 4, py + 7, 8, 2);
       }
     }
+
+  // Отрисовка уличных объектов (префабы)
+  if (map.objects) {
+    for (const obj of map.objects) {
+      if (!obj.isCollision) {
+        paintPrefab(ctx, obj, rng);
+      }
+    }
+  }
+
   return cv;
 }
 
@@ -118,196 +128,199 @@ function paintIce(ctx, map, tx, ty, px, py, smooth, rng) {
   if (!ice(tx + 1, ty)) ctx.fillRect(px + TILE - 1, py, 1, TILE);
 }
 
-// ---------- отрисовка дома с окнами и неоновыми вывесками ----------
-function paintHouse(ctx, map, tx, ty, px, py, rng) {
-  const house = map.houseAt(tx, ty);
-  if (!house) return;
-  
-  // Специальная обработка для стены по периметру
-  if (house.isWall) {
-    paintWall(ctx, map, tx, ty, px, py);
-    return;
-  }
-  
-  const { height, windows, hasSign, signType, signColor, buildingWidth, buildingDepth } = house;
-  
-  // Определяем позицию этого тайла внутри здания
-  // Находим верхний левый угол здания
-  let buildingStartX = tx;
-  let buildingStartY = ty;
-  
-  // Ищем начало здания, двигаясь влево и вверх
-  while (buildingStartX > 0 && map.houseAt(buildingStartX - 1, ty)?.buildingWidth === buildingWidth) {
-    buildingStartX--;
-  }
-  while (buildingStartY > 0 && map.houseAt(tx, buildingStartY - 1)?.buildingDepth === buildingDepth) {
-    buildingStartY--;
-  }
-  
-  const localX = tx - buildingStartX;
-  const localY = ty - buildingStartY;
-  
-  // Базовый цвет здания (тёмно-серый с вариациями)
-  const baseColor = rng() < 0.5 ? "#2a3444" : "#323e4f";
-  const darkColor = "#1a2028";
-  const lightColor = "#3d4d6b";
-  
-  // Основание здания
-  ctx.fillStyle = baseColor;
-  ctx.fillRect(px, py, TILE, TILE);
-  
-  // Тень слева (если это левая граница здания)
-  if (localX === 0) {
-    ctx.fillStyle = darkColor;
-    ctx.fillRect(px, py, 2, TILE);
-  }
-  
-  // Свет справа (если это правая граница здания)
-  if (localX === buildingWidth - 1) {
-    ctx.fillStyle = lightColor;
-    ctx.fillRect(px + TILE - 2, py, 2, TILE);
-  }
-  
-  // Крыша (тёмная полоса сверху)
-  if (localY === 0) {
-    ctx.fillStyle = darkColor;
-    ctx.fillRect(px, py, TILE, 3);
-    // Снег на крыше
-    ctx.fillStyle = "#dfe9f5";
-    ctx.fillRect(px + 1, py, TILE - 2, 1);
-  }
-  
-  // Окна (рисуем только на фасадах - верхняя и нижняя границы здания)
-  if (localY === 0 || localY === buildingDepth - 1) {
-    const windowHeight = Math.floor(TILE / (height + 1));
-    const windowWidth = 3;
-    const windowSpacing = Math.floor(TILE / 3);
-    
-    for (let floor = 0; floor < height; floor++) {
-      for (let w = 0; w < 2; w++) {
-        const windowIndex = floor * 2 + w;
-        const isLit = windows[windowIndex];
-        const wx = px + windowSpacing * (w + 0.5) - windowWidth / 2;
-        const wy = py + 4 + floor * windowHeight;
-        
-        if (isLit) {
-          // Горящее окно (тёплый жёлтый свет)
-          ctx.fillStyle = "#ffb347";
-          ctx.fillRect(wx, wy, windowWidth, windowHeight - 2);
-          // Свечение вокруг окна
-          ctx.fillStyle = "rgba(255, 179, 71, 0.3)";
-          ctx.fillRect(wx - 1, wy - 1, windowWidth + 2, windowHeight);
-        } else {
-          // Тёмное окно
-          ctx.fillStyle = "#0a0f1e";
-          ctx.fillRect(wx, wy, windowWidth, windowHeight - 2);
-        }
-      }
-    }
-  }
-  
-  // Неоновая вывеска (если есть и это первый тайл здания)
-  if (hasSign && signType && localX === 0 && localY === 0) {
-    const signY = py + TILE - 6;
-    const signX = px + 2;
-    const signWidth = TILE * buildingWidth - 4;
-    const signHeight = 4;
-    
-    // Фон вывески (тёмный)
-    ctx.fillStyle = "#0a0f1e";
-    ctx.fillRect(signX, signY, signWidth, signHeight);
-    
-    // Неоновый текст/символ
-    ctx.fillStyle = signColor;
-    drawSignSymbol(ctx, signType, signX + 1, signY + 1, signWidth - 2, signHeight - 2);
-    
-    // Свечение вокруг вывески
-    ctx.fillStyle = signColor + "40"; // 25% прозрачности
-    ctx.fillRect(signX - 1, signY - 1, signWidth + 2, signHeight + 2);
-  }
-}
 
-// ---------- отрисовка стены по периметру ----------
-function paintWall(ctx, map, tx, ty, px, py) {
-  // Стена — сплошная тёмная граница
+
+// ---------- отрисовка стены здания ----------
+function paintBuildingWall(ctx, map, tx, ty, px, py, rng) {
+  // Стена здания — тёмная с текстурой
   const wallColor = "#1a2028";
   const wallHighlight = "#2a3444";
+  const windowColor = "#0a0f1e";
+  const windowLitColor = "#ffb347";
   
   // Основание стены
   ctx.fillStyle = wallColor;
   ctx.fillRect(px, py, TILE, TILE);
   
-  // Текстура стены (вертикальные линии)
+  // Текстура стены (горизонтальные линии)
   ctx.fillStyle = wallHighlight;
-  for (let i = 0; i < 3; i++) {
-    const x = px + 4 + i * 4;
-    ctx.fillRect(x, py + 2, 1, TILE - 4);
+  for (let i = 0; i < 4; i++) {
+    const y = py + 4 + i * 7;
+    ctx.fillRect(px, y, TILE, 1);
   }
   
-  // Верхняя кромка стены (если это верхняя граница)
-  if (ty === 0 || ty === 1 || ty === 2) {
-    ctx.fillStyle = "#3d4d6b";
-    ctx.fillRect(px, py, TILE, 2);
-  }
-  
-  // Нижняя кромка стены (если это нижняя граница)
-  if (ty >= map.size - 3) {
-    ctx.fillStyle = "#3d4d6b";
-    ctx.fillRect(px, py + TILE - 2, TILE, 2);
-  }
-  
-  // Левая кромка стены (если это левая граница)
-  if (tx === 0 || tx === 1 || tx === 2) {
-    ctx.fillStyle = "#3d4d6b";
-    ctx.fillRect(px, py, 2, TILE);
-  }
-  
-  // Правая кромка стены (если это правая граница)
-  if (tx >= map.size - 3) {
-    ctx.fillStyle = "#3d4d6b";
-    ctx.fillRect(px + TILE - 2, py, 2, TILE);
+  // Окна (случайные, некоторые горят)
+  const windowSize = 3;
+  const windowSpacing = 8;
+  for (let wy = 0; wy < 2; wy++) {
+    for (let wx = 0; wx < 2; wx++) {
+      const x = px + 4 + wx * windowSpacing;
+      const y = py + 4 + wy * windowSpacing;
+      
+      ctx.fillStyle = rng() < 0.4 ? windowLitColor : windowColor;
+      ctx.fillRect(x, y, windowSize, windowSize);
+      
+      // Рамка окна
+      ctx.fillStyle = wallHighlight;
+      ctx.fillRect(x - 1, y - 1, windowSize + 2, 1);
+      ctx.fillRect(x - 1, y + windowSize, windowSize + 2, 1);
+    }
   }
 }
 
-// ---------- отрисовка символа неоновой вывески ----------
-function drawSignSymbol(ctx, type, x, y, w, h) {
-  switch (type) {
-    case "bar":
-      // Символ бокала
-      ctx.fillRect(x + w / 2 - 1, y, 2, h);
-      ctx.fillRect(x + w / 2 - 2, y + h - 1, 4, 1);
+// ---------- отрисовка префаба ----------
+function paintPrefab(ctx, obj, rng) {
+  const { x, y, prefab } = obj;
+  const px = x * TILE;
+  const py = y * TILE;
+  
+  // Рисуем префаб в зависимости от типа
+  switch (prefab.id) {
+    case "dumpster":
+      drawDumpster(ctx, px, py, prefab.width, prefab.height);
       break;
-    case "shop":
-      // Символ корзины
-      ctx.fillRect(x + 1, y + 1, w - 2, h - 2);
+    case "concrete_block":
+      drawConcreteBlock(ctx, px, py, prefab.width, prefab.height);
       break;
-    case "hotel":
-      // Символ "H"
-      ctx.fillRect(x + 1, y, 1, h);
-      ctx.fillRect(x + w - 2, y, 1, h);
-      ctx.fillRect(x + 1, y + h / 2, w - 2, 1);
+    case "cyber_car":
+      drawCyberCar(ctx, px, py, prefab.width, prefab.height);
       break;
-    case "clinic":
-      // Символ креста
-      ctx.fillRect(x + w / 2 - 1, y, 2, h);
-      ctx.fillRect(x, y + h / 2 - 1, w, 2);
+    case "vending_machine":
+      drawVendingMachine(ctx, px, py, prefab.width, prefab.height);
       break;
-    case "casino":
-      // Символ игральной кости (точки)
-      ctx.fillRect(x + 1, y + 1, 1, 1);
-      ctx.fillRect(x + w - 2, y + 1, 1, 1);
-      ctx.fillRect(x + w / 2, y + h / 2, 1, 1);
-      ctx.fillRect(x + 1, y + h - 2, 1, 1);
-      ctx.fillRect(x + w - 2, y + h - 2, 1, 1);
+    case "crate":
+      drawCrate(ctx, px, py);
       break;
-    case "neon":
-      // Абстрактный неоновый символ
-      ctx.fillRect(x, y, w, 1);
-      ctx.fillRect(x, y + h - 1, w, 1);
-      ctx.fillRect(x + w / 2 - 1, y, 2, h);
+    case "barrel":
+      drawBarrel(ctx, px, py);
+      break;
+    case "trash":
+      drawTrash(ctx, px, py, rng);
+      break;
+    case "puddle":
+      drawPuddle(ctx, px, py);
+      break;
+    case "cable":
+      drawCable(ctx, px, py, rng);
+      break;
+    case "neon_sign":
+      drawNeonSign(ctx, px, py, prefab, rng);
+      break;
+    case "street_light":
+      drawStreetLight(ctx, px, py);
       break;
   }
+  
+  // Рисуем неоновые точки
+  if (prefab.neon && prefab.neon.length > 0) {
+    for (const node of prefab.neon) {
+      const nx = px + node.x * TILE;
+      const ny = py + node.y * TILE;
+      drawNeonGlow(ctx, nx, ny, node.color, node.radius);
+    }
+  }
 }
+
+// Функции отрисовки конкретных префабов
+function drawDumpster(ctx, px, py, w, h) {
+  ctx.fillStyle = "#3d4d6b";
+  ctx.fillRect(px, py, w * TILE, h * TILE);
+  ctx.fillStyle = "#2a3444";
+  ctx.fillRect(px + 2, py + 2, w * TILE - 4, h * TILE - 4);
+}
+
+function drawConcreteBlock(ctx, px, py, w, h) {
+  ctx.fillStyle = "#55688a";
+  ctx.fillRect(px, py, w * TILE, h * TILE);
+  ctx.fillStyle = "#3d4d6b";
+  ctx.fillRect(px + 1, py + 1, w * TILE - 2, h * TILE - 2);
+}
+
+function drawCyberCar(ctx, px, py, w, h) {
+  ctx.fillStyle = "#2a3444";
+  ctx.fillRect(px, py, w * TILE, h * TILE);
+  ctx.fillStyle = "#3d4d6b";
+  ctx.fillRect(px + 4, py + 4, w * TILE - 8, h * TILE - 8);
+  // Фары
+  ctx.fillStyle = "#6fd6ff";
+  ctx.fillRect(px + 4, py + 8, 4, 4);
+  ctx.fillStyle = "#ff4757";
+  ctx.fillRect(px + w * TILE - 8, py + 8, 4, 4);
+}
+
+function drawVendingMachine(ctx, px, py, w, h) {
+  ctx.fillStyle = "#3d4d6b";
+  ctx.fillRect(px, py, w * TILE, h * TILE);
+  ctx.fillStyle = "#7dff8a";
+  ctx.fillRect(px + 4, py + 8, w * TILE - 8, h * TILE - 16);
+}
+
+function drawCrate(ctx, px, py) {
+  ctx.fillStyle = "#8a5a3a";
+  ctx.fillRect(px + 2, py + 2, TILE - 4, TILE - 4);
+  ctx.fillStyle = "#6a4229";
+  ctx.fillRect(px + 4, py + 4, TILE - 8, TILE - 8);
+}
+
+function drawBarrel(ctx, px, py) {
+  ctx.fillStyle = "#55688a";
+  ctx.fillRect(px + 3, py + 3, TILE - 6, TILE - 6);
+  ctx.fillStyle = "#3d4d6b";
+  ctx.fillRect(px + 5, py + 5, TILE - 10, TILE - 10);
+}
+
+function drawTrash(ctx, px, py, rng) {
+  ctx.fillStyle = "#4a4a4a";
+  for (let i = 0; i < 5; i++) {
+    const x = px + Math.floor(rng() * TILE);
+    const y = py + Math.floor(rng() * TILE);
+    ctx.fillRect(x, y, 2, 2);
+  }
+}
+
+function drawPuddle(ctx, px, py) {
+  ctx.fillStyle = "rgba(111, 214, 255, 0.3)";
+  ctx.fillRect(px + 2, py + 2, TILE - 4, TILE - 4);
+}
+
+function drawCable(ctx, px, py, rng) {
+  ctx.strokeStyle = "#2a3444";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(px, py + TILE / 2);
+  ctx.lineTo(px + TILE, py + TILE / 2 + (rng() - 0.5) * 8);
+  ctx.stroke();
+}
+
+function drawNeonSign(ctx, px, py, prefab, rng) {
+  const colors = ["#ff4757", "#6fd6ff", "#7dff8a", "#ffb347"];
+  const color = colors[Math.floor(rng() * colors.length)];
+  
+  // Основа вывески
+  ctx.fillStyle = "#1a2028";
+  ctx.fillRect(px, py, prefab.width * TILE, prefab.height * TILE);
+  
+  // Неоновый текст (упрощённый)
+  ctx.fillStyle = color;
+  ctx.fillRect(px + 4, py + 4, prefab.width * TILE - 8, prefab.height * TILE - 8);
+}
+
+function drawStreetLight(ctx, px, py) {
+  ctx.fillStyle = "#3d4d6b";
+  ctx.fillRect(px + TILE / 2 - 2, py, 4, TILE);
+  ctx.fillStyle = "#ffb347";
+  ctx.fillRect(px + TILE / 2 - 4, py, 8, 4);
+}
+
+function drawNeonGlow(ctx, x, y, color, radius) {
+  // Свечение (упрощённое)
+  ctx.fillStyle = color;
+  ctx.globalAlpha = 0.6;
+  ctx.fillRect(x - radius, y - radius, radius * 2, radius * 2);
+  ctx.globalAlpha = 1;
+}
+
+
 
 // ---------- база миникарты (1px на тайл) ----------
 export function paintMinimapBase(map) {
