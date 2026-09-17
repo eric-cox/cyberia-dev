@@ -8,6 +8,8 @@
 //    • у центра  — p = 1: открытые снежные поля;
 //    • к краю    — p падает: фронт вязнет, и непройденные
 //                  ячейки становятся СТЕНОЙ из домов.
+//  По периметру карты — непроходимая стена толщиной 3 тайла,
+//  отделяющая игровую область от пустоты за пределами карты.
 //  Граница острова неровная (угловой шум) — фьорды, косы,
 //  тупики. Внутри острова: глубина снега и дома тоже
 //  смещены к краям, озёра льда, мёртвые деревья.
@@ -74,7 +76,10 @@ function carveIsland(map, rng, fractal) {
     for (const [dx, dy] of dirs) {
       const nx = cx + dx;
       const ny = cy + dy;
-      if (nx < 1 || ny < 1 || nx >= size - 1 || ny >= size - 1) continue;
+      // Не выходим за пределы внутренней области (за стеной)
+      const wallThickness = 3;
+      if (nx < wallThickness || ny < wallThickness || 
+          nx >= size - wallThickness || ny >= size - wallThickness) continue;
       const i2 = idx(nx, ny);
       if (carved[i2] === 1) continue;
 
@@ -110,10 +115,41 @@ export function generateWorld(seed) {
   const C = MAP_TILES / 2;
   const distC = (tx, ty) => Math.hypot(tx - C, ty - C);
 
+  // ---------- фаза 1.5: стена по периметру карты ----------
+  // Создаём непроходимую стену толщиной 3 тайла по краям карты
+  const wallThickness = 3;
+  for (let y = 0; y < MAP_TILES; y++) {
+    for (let x = 0; x < MAP_TILES; x++) {
+      // Проверяем, находится ли тайл в пределах стены
+      if (x < wallThickness || x >= MAP_TILES - wallThickness ||
+          y < wallThickness || y >= MAP_TILES - wallThickness) {
+        map.set(x, y, T.HOUSE);
+        // Добавляем метаданные для стены (высокое здание без окон)
+        map.houseData.set(`${x},${y}`, {
+          height: 3,
+          windows: [false, false, false, false, false, false],
+          hasSign: false,
+          signType: null,
+          signColor: null,
+          buildingWidth: 1,
+          buildingDepth: 1,
+          isWall: true,
+        });
+      }
+    }
+  }
+
   // ---------- фаза 2: наполнение острова ----------
   for (let y = 0; y < MAP_TILES; y++)
     for (let x = 0; x < MAP_TILES; x++) {
       const i = y * MAP_TILES + x;
+      
+      // Пропускаем стену по периметру (уже установлена в фазе 1.5)
+      if (x < wallThickness || x >= MAP_TILES - wallThickness ||
+          y < wallThickness || y >= MAP_TILES - wallThickness) {
+        continue;
+      }
+      
       if (!carved[i]) {
         map.tiles[i] = T.HOUSE; // непройденное — стена из домов
         continue;
