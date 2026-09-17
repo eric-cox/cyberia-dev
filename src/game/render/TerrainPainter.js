@@ -123,6 +123,12 @@ function paintHouse(ctx, map, tx, ty, px, py, rng) {
   const house = map.houseAt(tx, ty);
   if (!house) return;
   
+  // Специальная обработка для стены по периметру
+  if (house.isWall) {
+    paintWall(ctx, map, tx, ty, px, py);
+    return;
+  }
+  
   const { height, windows, hasSign, signType, signColor, buildingWidth, buildingDepth } = house;
   
   // Определяем позицию этого тайла внутри здания
@@ -218,6 +224,48 @@ function paintHouse(ctx, map, tx, ty, px, py, rng) {
     // Свечение вокруг вывески
     ctx.fillStyle = signColor + "40"; // 25% прозрачности
     ctx.fillRect(signX - 1, signY - 1, signWidth + 2, signHeight + 2);
+  }
+}
+
+// ---------- отрисовка стены по периметру ----------
+function paintWall(ctx, map, tx, ty, px, py) {
+  // Стена — сплошная тёмная граница
+  const wallColor = "#1a2028";
+  const wallHighlight = "#2a3444";
+  
+  // Основание стены
+  ctx.fillStyle = wallColor;
+  ctx.fillRect(px, py, TILE, TILE);
+  
+  // Текстура стены (вертикальные линии)
+  ctx.fillStyle = wallHighlight;
+  for (let i = 0; i < 3; i++) {
+    const x = px + 4 + i * 4;
+    ctx.fillRect(x, py + 2, 1, TILE - 4);
+  }
+  
+  // Верхняя кромка стены (если это верхняя граница)
+  if (ty === 0 || ty === 1 || ty === 2) {
+    ctx.fillStyle = "#3d4d6b";
+    ctx.fillRect(px, py, TILE, 2);
+  }
+  
+  // Нижняя кромка стены (если это нижняя граница)
+  if (ty >= map.size - 3) {
+    ctx.fillStyle = "#3d4d6b";
+    ctx.fillRect(px, py + TILE - 2, TILE, 2);
+  }
+  
+  // Левая кромка стены (если это левая граница)
+  if (tx === 0 || tx === 1 || tx === 2) {
+    ctx.fillStyle = "#3d4d6b";
+    ctx.fillRect(px, py, 2, TILE);
+  }
+  
+  // Правая кромка стены (если это правая граница)
+  if (tx >= map.size - 3) {
+    ctx.fillStyle = "#3d4d6b";
+    ctx.fillRect(px + TILE - 2, py, 2, TILE);
   }
 }
 
