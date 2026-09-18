@@ -153,36 +153,57 @@ function paintBuildingRoof(ctx, map, tx, ty, px, py, rng) {
   ctx.fillStyle = roofColor;
   ctx.fillRect(px, py, TILE, TILE);
   
-  // Бортики по краям крыши (небольшие линии по периметру)
+  // Бортики только по внешнему периметру здания
+  // Проверяем соседей: если сосед не HOUSE, рисуем бортик
   ctx.fillStyle = roofEdge;
   const edgeSize = 2;
-  // Верхний бортик
-  ctx.fillRect(px, py, TILE, edgeSize);
-  // Нижний бортик
-  ctx.fillRect(px, py + TILE - edgeSize, TILE, edgeSize);
-  // Левый бортик
-  ctx.fillRect(px, py, edgeSize, TILE);
-  // Правый бортик
-  ctx.fillRect(px + TILE - edgeSize, py, edgeSize, TILE);
   
-  // Антенны на крыше (случайные точки/линии)
-  if (rng() < 0.3) { // 30% шанс наличия антенны
-    ctx.fillStyle = antennaColor;
-    const antennaX = px + 4 + Math.floor(rng() * (TILE - 8));
-    const antennaY = py + 4 + Math.floor(rng() * (TILE - 8));
-    
-    // Вертикальная антенна (линия)
-    ctx.fillRect(antennaX, antennaY, 1, 6);
-    // Горизонтальная перекладина
-    ctx.fillRect(antennaX - 2, antennaY + 2, 5, 1);
+  const isHouse = (x, y) => {
+    if (x < 0 || y < 0 || x >= map.size || y >= map.size) return false;
+    return map.get(x, y) === T.HOUSE;
+  };
+  
+  // Верхний бортик (если сосед сверху не дом)
+  if (!isHouse(tx, ty - 1)) {
+    ctx.fillRect(px, py, TILE, edgeSize);
+  }
+  // Нижний бортик (если сосед снизу не дом)
+  if (!isHouse(tx, ty + 1)) {
+    ctx.fillRect(px, py + TILE - edgeSize, TILE, edgeSize);
+  }
+  // Левый бортик (если сосед слева не дом)
+  if (!isHouse(tx - 1, ty)) {
+    ctx.fillRect(px, py, edgeSize, TILE);
+  }
+  // Правый бортик (если сосед справа не дом)
+  if (!isHouse(tx + 1, ty)) {
+    ctx.fillRect(px + TILE - edgeSize, py, edgeSize, TILE);
   }
   
-  // Дополнительные детали на крыше (вентиляция, люки)
-  if (rng() < 0.2) { // 20% шанс
-    ctx.fillStyle = "#3d4d6b";
-    const detailX = px + 3 + Math.floor(rng() * (TILE - 6));
-    const detailY = py + 3 + Math.floor(rng() * (TILE - 6));
-    ctx.fillRect(detailX, detailY, 3, 3);
+  // Антенны и детали рисуем только на "первом" тайле здания
+  // (верхний-левый тайл: если слева и сверху не дом)
+  const isFirstTile = !isHouse(tx - 1, ty) && !isHouse(tx, ty - 1);
+  
+  if (isFirstTile) {
+    // Антенны на крыше (30% шанс)
+    if (rng() < 0.3) {
+      ctx.fillStyle = antennaColor;
+      const antennaX = px + 4 + Math.floor(rng() * (TILE - 8));
+      const antennaY = py + 4 + Math.floor(rng() * (TILE - 8));
+      
+      // Вертикальная антенна (линия)
+      ctx.fillRect(antennaX, antennaY, 1, 6);
+      // Горизонтальная перекладина
+      ctx.fillRect(antennaX - 2, antennaY + 2, 5, 1);
+    }
+    
+    // Дополнительные детали на крыше (20% шанс)
+    if (rng() < 0.2) {
+      ctx.fillStyle = "#3d4d6b";
+      const detailX = px + 3 + Math.floor(rng() * (TILE - 6));
+      const detailY = py + 3 + Math.floor(rng() * (TILE - 6));
+      ctx.fillRect(detailX, detailY, 3, 3);
+    }
   }
 }
 
