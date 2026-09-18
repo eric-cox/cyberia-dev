@@ -70,8 +70,8 @@ export function paintTerrain(map) {
       }
 
       if (t === T.HOUSE) {
-        // отрисовка стены здания
-        paintBuildingWall(ctx, map, tx, ty, px, py, rng);
+        // отрисовка крыши здания (вид сверху)
+        paintBuildingRoof(ctx, map, tx, ty, px, py, rng);
       }
     }
   }
@@ -143,40 +143,46 @@ function paintIce(ctx, map, tx, ty, px, py, smooth, rng) {
 
 
 // ---------- отрисовка стены здания ----------
-function paintBuildingWall(ctx, map, tx, ty, px, py, rng) {
-  // Стена здания — тёмная с текстурой
-  const wallColor = "#1a2028";
-  const wallHighlight = "#2a3444";
-  const windowColor = "#0a0f1e";
-  const windowLitColor = "#ffb347";
+function paintBuildingRoof(ctx, map, tx, ty, px, py, rng) {
+  // Крыша здания (вид сверху)
+  const roofColor = "#2a3444";
+  const roofEdge = "#1a2028";
+  const antennaColor = "#4a5568";
   
-  // Основание стены
-  ctx.fillStyle = wallColor;
+  // Основание крыши
+  ctx.fillStyle = roofColor;
   ctx.fillRect(px, py, TILE, TILE);
   
-  // Текстура стены (горизонтальные линии)
-  ctx.fillStyle = wallHighlight;
-  for (let i = 0; i < 4; i++) {
-    const y = py + 4 + i * 7;
-    ctx.fillRect(px, y, TILE, 1);
+  // Бортики по краям крыши (небольшие линии по периметру)
+  ctx.fillStyle = roofEdge;
+  const edgeSize = 2;
+  // Верхний бортик
+  ctx.fillRect(px, py, TILE, edgeSize);
+  // Нижний бортик
+  ctx.fillRect(px, py + TILE - edgeSize, TILE, edgeSize);
+  // Левый бортик
+  ctx.fillRect(px, py, edgeSize, TILE);
+  // Правый бортик
+  ctx.fillRect(px + TILE - edgeSize, py, edgeSize, TILE);
+  
+  // Антенны на крыше (случайные точки/линии)
+  if (rng() < 0.3) { // 30% шанс наличия антенны
+    ctx.fillStyle = antennaColor;
+    const antennaX = px + 4 + Math.floor(rng() * (TILE - 8));
+    const antennaY = py + 4 + Math.floor(rng() * (TILE - 8));
+    
+    // Вертикальная антенна (линия)
+    ctx.fillRect(antennaX, antennaY, 1, 6);
+    // Горизонтальная перекладина
+    ctx.fillRect(antennaX - 2, antennaY + 2, 5, 1);
   }
   
-  // Окна (случайные, некоторые горят)
-  const windowSize = 3;
-  const windowSpacing = 8;
-  for (let wy = 0; wy < 2; wy++) {
-    for (let wx = 0; wx < 2; wx++) {
-      const x = px + 4 + wx * windowSpacing;
-      const y = py + 4 + wy * windowSpacing;
-      
-      ctx.fillStyle = rng() < 0.4 ? windowLitColor : windowColor;
-      ctx.fillRect(x, y, windowSize, windowSize);
-      
-      // Рамка окна
-      ctx.fillStyle = wallHighlight;
-      ctx.fillRect(x - 1, y - 1, windowSize + 2, 1);
-      ctx.fillRect(x - 1, y + windowSize, windowSize + 2, 1);
-    }
+  // Дополнительные детали на крыше (вентиляция, люки)
+  if (rng() < 0.2) { // 20% шанс
+    ctx.fillStyle = "#3d4d6b";
+    const detailX = px + 3 + Math.floor(rng() * (TILE - 6));
+    const detailY = py + 3 + Math.floor(rng() * (TILE - 6));
+    ctx.fillRect(detailX, detailY, 3, 3);
   }
 }
 
