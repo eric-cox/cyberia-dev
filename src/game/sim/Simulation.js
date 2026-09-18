@@ -287,12 +287,21 @@ export class Simulation {
 
   // Выстрел дробовиком: 2 патрона в стволе можно отстрелять подряд,
   // затем — перезарядка. Пучок дроби см. Pellet.js.
+  // Если патронов нет и перезарядка не идёт — используем как ближний бой.
   fireShotgun(angle) {
     const player = this.player;
     if (player.reloadT > 0) return; // идёт перезарядка
     if (player.attackCooldown > 0) return; // темп стрельбы
+
+    // Если в стволе нет патронов
     if (player.tube <= 0) {
-      this.startReload(); // ствол пуст: зарядим или щёлкнем впустую
+      // Если есть патроны в запасе — начинаем перезарядку
+      if (player.ammo > 0) {
+        this.startReload();
+        return;
+      }
+      // Патронов нет вообще — используем как оружие ближнего боя
+      this.meleeAttack(angle);
       return;
     }
 
@@ -314,7 +323,7 @@ export class Simulation {
       this.pellets.push(new Pellet(muzzleX, muzzleY, angle, weapon.pelletSpeed, weapon.pelletDmg, weapon.spread));
 
     // ствол опустел — сразу начинаем перезарядку, если есть патроны
-    if (player.tube <= 0) this.startReload();
+    if (player.tube <= 0 && player.ammo > 0) this.startReload();
   }
 
   // Перезарядка дробовика: 2 секунды, добирает патроны из запаса.
@@ -379,6 +388,19 @@ export class Simulation {
     const player = this.player;
     if (player.attackCooldown > 0) return; // идёт перезарядка
     const weapon = this.equipment.weapon();
+    
+    // Определяем параметры удара в зависимости от типа оружия
+    let meleeRange = weapon.range;
+    let meleeDmg = weapon.dmg;
+    let isButtstroke = false;
+    
+    // Дробовик без патронов — удар прикладом (малый радиус, средний урон)
+    if (weapon.kind === "shotgun" && player.tube <= 0 && player.ammo <= 0) {
+      meleeRange = 35; // короткий радиус удара прикладом
+      meleeDmg = 18; // средний урон
+      isButtstroke = true;
+    }
+    
     player.attackCooldown = 1 / weapon.rate;
     player.attackAnimTime = 0.16;
     player.face = angle;
@@ -387,14 +409,14 @@ export class Simulation {
     // точка перед игроком, откуда «растёт» дуга взмаха
     const originX = player.x + Math.cos(angle) * 7;
     const originY = player.y - 3 + Math.sin(angle) * 7;
-    this.bus.emit("attack", { x: originX, y: originY, angle, range: weapon.range });
+    this.bus.emit("attack", { x: originX, y: originY, angle, range: meleeRange });
 
     for (const enemy of this.enemies) {
       if (enemy.dead) continue;
       const dx = enemy.x - player.x;
       const dy = enemy.y - player.y;
       const dist = Math.hypot(dx, dy);
-      if (dist > weapon.range + enemy.r) continue; // слишком далеко
+      if (dist > meleeRange + enemy.r) continue; // слишком далеко
       // Разность углов, нормализованная в [-π, π]:
       // atan2(sin, cos) «схлопывает» переход через ±180°,
       // иначе 359° и 1° считались бы далёкими углами.
@@ -402,7 +424,7 @@ export class Simulation {
       const angleDiff = Math.atan2(Math.sin(angleToEnemy), Math.cos(angleToEnemy));
       if (Math.abs(angleDiff) > 1.25) continue; // вне сектора удара
       // Разброс урона ±~12%, минимум 1
-      const dmg = Math.max(1, Math.round(weapon.dmg * (0.9 + Math.random() * 0.25)));
+      const dmg = Math.max(1, Math.round(meleeDmg * (0.9 + Math.random() * 0.25)));
       this.hitEnemy(enemy, dmg, angle);
     }
   }
