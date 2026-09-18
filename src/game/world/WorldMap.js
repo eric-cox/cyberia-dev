@@ -20,7 +20,7 @@ export class WorldMap {
     this.seed = seed;
     this.size = size; // тайлов по стороне
     this.tiles = tiles; // Uint8Array size*size
-    this.decor = []; // { kind:"manhole"|"puddle", x, y, ... }
+    this.streetDetails = []; // { kind:"manhole"|"puddle", x, y, ... }
     this.bands = null; // индекс: band[радиус] → [индексы проходимых ячеек]
     this.houseData = new Map(); // метаданные домов: key = "x,y" → { height, windows, sign }
     this.objects = []; // уличные объекты (префабы)

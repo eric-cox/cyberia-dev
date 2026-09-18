@@ -9,7 +9,7 @@
 import { TILE } from "../core/Constants.js";
 import { T } from "../world/tiles.js";
 import { mulberry32 } from "../core/Rng.js";
-import { StreetRenderer } from "./StreetRenderer.js";
+import { renderStreets } from "./StreetRenderer.js";
 
 const SNOW_BASE = ["#dfe9f5", "#cddcf0", "#b3c6e0"];
 const SNOW_SPECK = ["#c9d8ec", "#b9cbe4", "#9fb3d1"];
@@ -24,8 +24,7 @@ export function paintTerrain(map) {
 
   // ========== Рендеринг улиц (если есть уличная сеть) ==========
   if (map.streetNetwork) {
-    const streetRenderer = new StreetRenderer();
-    streetRenderer.renderToContext(ctx, map.streetNetwork, 0);
+    renderStreets(ctx, map.streetNetwork);
   }
 
   // ========== Рендеринг остальных тайлов ==========
@@ -81,7 +80,7 @@ export function paintTerrain(map) {
   if (map.objects) {
     for (const obj of map.objects) {
       if (!obj.isCollision) {
-        paintPrefab(ctx, obj, rng);
+        paintPrefab(ctx, obj);
       }
     }
   }
@@ -181,156 +180,20 @@ function paintBuildingWall(ctx, map, tx, ty, px, py, rng) {
   }
 }
 
-// ---------- отрисовка префаба ----------
-function paintPrefab(ctx, obj, rng) {
+// ---------- отрисовка префаба (упрощённая, KISS) ----------
+function paintPrefab(ctx, obj) {
   const { x, y, prefab } = obj;
   const px = x * TILE;
   const py = y * TILE;
   
-  // Рисуем префаб в зависимости от типа
-  switch (prefab.id) {
-    case "dumpster":
-      drawDumpster(ctx, px, py, prefab.width, prefab.height);
-      break;
-    case "concrete_block":
-      drawConcreteBlock(ctx, px, py, prefab.width, prefab.height);
-      break;
-    case "cyber_car":
-      drawCyberCar(ctx, px, py, prefab.width, prefab.height);
-      break;
-    case "vending_machine":
-      drawVendingMachine(ctx, px, py, prefab.width, prefab.height);
-      break;
-    case "crate":
-      drawCrate(ctx, px, py);
-      break;
-    case "barrel":
-      drawBarrel(ctx, px, py);
-      break;
-    case "trash":
-      drawTrash(ctx, px, py, rng);
-      break;
-    case "puddle":
-      drawPuddle(ctx, px, py);
-      break;
-    case "cable":
-      drawCable(ctx, px, py, rng);
-      break;
-    case "neon_sign":
-      drawNeonSign(ctx, px, py, prefab, rng);
-      break;
-    case "street_light":
-      drawStreetLight(ctx, px, py);
-      break;
-  }
-  
-  // Рисуем неоновые точки
-  if (prefab.neon && prefab.neon.length > 0) {
-    for (const node of prefab.neon) {
-      const nx = px + node.x * TILE;
-      const ny = py + node.y * TILE;
-      drawNeonGlow(ctx, nx, ny, node.color, node.radius);
-    }
-  }
-}
-
-// Функции отрисовки конкретных префабов
-function drawDumpster(ctx, px, py, w, h) {
-  ctx.fillStyle = "#3d4d6b";
-  ctx.fillRect(px, py, w * TILE, h * TILE);
-  ctx.fillStyle = "#2a3444";
-  ctx.fillRect(px + 2, py + 2, w * TILE - 4, h * TILE - 4);
-}
-
-function drawConcreteBlock(ctx, px, py, w, h) {
-  ctx.fillStyle = "#55688a";
-  ctx.fillRect(px, py, w * TILE, h * TILE);
-  ctx.fillStyle = "#3d4d6b";
-  ctx.fillRect(px + 1, py + 1, w * TILE - 2, h * TILE - 2);
-}
-
-function drawCyberCar(ctx, px, py, w, h) {
-  ctx.fillStyle = "#2a3444";
-  ctx.fillRect(px, py, w * TILE, h * TILE);
-  ctx.fillStyle = "#3d4d6b";
-  ctx.fillRect(px + 4, py + 4, w * TILE - 8, h * TILE - 8);
-  // Фары
-  ctx.fillStyle = "#6fd6ff";
-  ctx.fillRect(px + 4, py + 8, 4, 4);
-  ctx.fillStyle = "#ff4757";
-  ctx.fillRect(px + w * TILE - 8, py + 8, 4, 4);
-}
-
-function drawVendingMachine(ctx, px, py, w, h) {
-  ctx.fillStyle = "#3d4d6b";
-  ctx.fillRect(px, py, w * TILE, h * TILE);
-  ctx.fillStyle = "#7dff8a";
-  ctx.fillRect(px + 4, py + 8, w * TILE - 8, h * TILE - 16);
-}
-
-function drawCrate(ctx, px, py) {
-  ctx.fillStyle = "#8a5a3a";
-  ctx.fillRect(px + 2, py + 2, TILE - 4, TILE - 4);
-  ctx.fillStyle = "#6a4229";
-  ctx.fillRect(px + 4, py + 4, TILE - 8, TILE - 8);
-}
-
-function drawBarrel(ctx, px, py) {
-  ctx.fillStyle = "#55688a";
-  ctx.fillRect(px + 3, py + 3, TILE - 6, TILE - 6);
-  ctx.fillStyle = "#3d4d6b";
-  ctx.fillRect(px + 5, py + 5, TILE - 10, TILE - 10);
-}
-
-function drawTrash(ctx, px, py, rng) {
-  ctx.fillStyle = "#4a4a4a";
-  for (let i = 0; i < 5; i++) {
-    const x = px + Math.floor(rng() * TILE);
-    const y = py + Math.floor(rng() * TILE);
-    ctx.fillRect(x, y, 2, 2);
-  }
-}
-
-function drawPuddle(ctx, px, py) {
-  ctx.fillStyle = "rgba(111, 214, 255, 0.3)";
-  ctx.fillRect(px + 2, py + 2, TILE - 4, TILE - 4);
-}
-
-function drawCable(ctx, px, py, rng) {
-  ctx.strokeStyle = "#2a3444";
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(px, py + TILE / 2);
-  ctx.lineTo(px + TILE, py + TILE / 2 + (rng() - 0.5) * 8);
-  ctx.stroke();
-}
-
-function drawNeonSign(ctx, px, py, prefab, rng) {
-  const colors = ["#ff4757", "#6fd6ff", "#7dff8a", "#ffb347"];
-  const color = colors[Math.floor(rng() * colors.length)];
-  
-  // Основа вывески
-  ctx.fillStyle = "#1a2028";
+  ctx.fillStyle = prefab.color;
   ctx.fillRect(px, py, prefab.width * TILE, prefab.height * TILE);
   
-  // Неоновый текст (упрощённый)
-  ctx.fillStyle = color;
-  ctx.fillRect(px + 4, py + 4, prefab.width * TILE - 8, prefab.height * TILE - 8);
-}
-
-function drawStreetLight(ctx, px, py) {
-  ctx.fillStyle = "#3d4d6b";
-  ctx.fillRect(px + TILE / 2 - 2, py, 4, TILE);
-  ctx.fillStyle = "#ffb347";
-  ctx.fillRect(px + TILE / 2 - 4, py, 8, 4);
-}
-
-function drawNeonGlow(ctx, x, y, color, radius) {
-  // Свечение (упрощённое)
-  ctx.fillStyle = color;
-  ctx.globalAlpha = 0.6;
-  ctx.fillRect(x - radius, y - radius, radius * 2, radius * 2);
-  ctx.globalAlpha = 1;
+  // Тень для твёрдых объектов
+  if (prefab.solid) {
+    ctx.fillStyle = "rgba(0, 0, 0, 0.3)";
+    ctx.fillRect(px + 2, py + 2, prefab.width * TILE - 4, prefab.height * TILE - 4);
+  }
 }
 
 

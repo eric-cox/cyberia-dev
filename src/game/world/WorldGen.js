@@ -9,7 +9,7 @@ import { mulberry32 } from "../core/Rng.js";
 import { WorldMap } from "./WorldMap.js";
 import { StreetNetwork } from "./streetNetwork.js";
 import { STREET_TYPE } from "./streetTypes.js";
-import { getRandomPrefabByTags } from "./prefabs.js";
+import { getRandomPrefab } from "./prefabs.js";
 
 // ---------- Главная функция генерации ----------
 export function generateWorld(seed) {
@@ -242,8 +242,8 @@ function placeStreetObjects(map, streetNetwork, rng) {
   // Размещаем крупные объекты вдоль стен
   for (const tile of wallAdjacentTiles) {
     if (rng() < 0.15) { // 15% шанс на объект
-      const prefab = getRandomPrefabByTags(["cover_high", "wall_adjacent"], rng);
-      if (prefab && canPlaceObject(map, tile.x, tile.y, prefab.width, prefab.height)) {
+      const prefab = getRandomPrefab(rng);
+      if (prefab && prefab.solid && canPlaceObject(map, tile.x, tile.y, prefab.width, prefab.height)) {
         placeObject(objects, tile.x, tile.y, prefab);
       }
     }
@@ -256,8 +256,8 @@ function placeStreetObjects(map, streetNetwork, rng) {
       const streetType = streetNetwork.streetType[streetIdx];
       
       if ((streetType === STREET_TYPE.ROADWAY || streetType === STREET_TYPE.SIDEWALK) && rng() < 0.03) {
-        const prefab = getRandomPrefabByTags(["clutter"], rng);
-        if (prefab) {
+        const prefab = getRandomPrefab(rng);
+        if (prefab && !prefab.solid) {
           objects.push({ x, y, prefab });
         }
       }
@@ -287,7 +287,7 @@ function placeObject(objects, x, y, prefab) {
 function addStreetDetails(map, streetNetwork, rng) {
   // Добавляем люки, лужи, трещины на основе данных streetNetwork
   for (const manhole of streetNetwork.manholes) {
-    map.decor.push({
+    map.streetDetails.push({
       kind: "manhole",
       x: manhole.x * TILE + TILE / 2,
       y: manhole.y * TILE + TILE / 2,
@@ -295,7 +295,7 @@ function addStreetDetails(map, streetNetwork, rng) {
   }
   
   for (const puddle of streetNetwork.puddles) {
-    map.decor.push({
+    map.streetDetails.push({
       kind: "puddle",
       x: puddle.x * TILE + TILE / 2,
       y: puddle.y * TILE + TILE / 2,
