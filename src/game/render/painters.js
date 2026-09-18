@@ -7,6 +7,9 @@
 import { artSystem } from "../art/pixel.js";
 import { TIER_COLORS } from "../data/items.js";
 
+// Константы для отрисовки
+const SHADOW_COLOR = "rgba(10,15,30,0.35)";
+
 // ---------- игрок ----------
 export function drawPlayer(ctx, player, weapon) {
   const anim = player.attackAnimTime > 0 ? "attack" : player.moving ? "walk" : "idle";
@@ -14,7 +17,7 @@ export function drawPlayer(ctx, player, weapon) {
   // смещение вперёд по направлению взгляда во время выпада
   const lungeX = Math.cos(player.face) * player.lunge * 4;
   const lungeY = Math.sin(player.face) * player.lunge * 4;
-  ctx.fillStyle = "rgba(10,15,30,0.35)";
+  ctx.fillStyle = SHADOW_COLOR;
   ctx.fillRect(Math.round(player.x - 5), Math.round(player.y - 1), 10, 3);
   artSystem.draw(ctx, "player", anim, idx, player.x + lungeX, player.y + 1, {
     flip: Math.cos(player.face) < 0,
@@ -86,7 +89,7 @@ export function drawEnemy(ctx, enemy) {
   const shake = enemy.state === "windup" ? (Math.random() - 0.5) * 1.6 : 0;
 
   // тень под зверем
-  ctx.fillStyle = "rgba(10,15,30,0.35)";
+  ctx.fillStyle = SHADOW_COLOR;
   const shadowWidth = enemy.r * 2;
   ctx.fillRect(Math.round(enemy.x - shadowWidth / 2), Math.round(enemy.y - 1), shadowWidth, 3);
   // Единый масштаб пикселя: все враги рисуются с scale = 1,
