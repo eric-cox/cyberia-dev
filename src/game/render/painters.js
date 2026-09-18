@@ -127,13 +127,3 @@ export function drawPickup(ctx, pickup) {
   const bob = Math.sin(pickup.t * 2.6) * 1.5;
   artSystem.draw(ctx, pickup.item.art, "idle", 0, pickup.x, pickup.y - 2 + bob, {});
 }
-
-// ---------- мёртвое дерево (покачивается в пургу) ----------
-export function drawTree(ctx, tree, time) {
-  const sway = Math.sin(time * 1.3 + tree.sway) * 0.02;
-  ctx.save();
-  ctx.translate(Math.round(tree.x), Math.round(tree.y));
-  ctx.rotate(sway);
-  artSystem.draw(ctx, "tree", "idle", 0, 0, 0, {});
-  ctx.restore();
-}

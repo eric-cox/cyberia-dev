@@ -20,7 +20,6 @@ export const T = {
   HOUSE: 3, // дом (непроходим)
   ICE: 4, // обычный лёд
   ICE_SMOOTH: 5, // гладкий лёд
-  TREE: 6, // мёртвое дерево (препятствие)
 };
 
 export const TILE_TABLE = [
@@ -30,7 +29,6 @@ export const TILE_TABLE = [
   { id: "house", name: "Дом", speed: 0, inertia: 0.2, solid: true },
   { id: "ice", name: "Обычный лёд", speed: 1, inertia: 0.5, solid: false },
   { id: "iceSmooth", name: "Гладкий лёд", speed: 1, inertia: 1, solid: false },
-  { id: "tree", name: "Мёртвое дерево", speed: 0, inertia: 0.2, solid: true },
 ];
 
 export function cellOf(t) {

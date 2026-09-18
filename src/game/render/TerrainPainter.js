@@ -73,12 +73,6 @@ export function paintTerrain(map) {
       if (t === T.HOUSE) {
         // отрисовка стены здания
         paintBuildingWall(ctx, map, tx, ty, px, py, rng);
-      } else if (t === T.TREE) {
-        // тень дерева (крона рисуется спрайтом в проходе сущностей)
-        ctx.fillStyle = "rgba(10,15,30,0.32)";
-        ctx.fillRect(px + 2, py + 9, 12, 5);
-        ctx.fillStyle = "rgba(10,15,30,0.18)";
-        ctx.fillRect(px + 4, py + 7, 8, 2);
       }
     }
   }
@@ -354,7 +348,6 @@ export function paintMinimapBase(map) {
     [T.HOUSE]: "#3d4d6b",
     [T.ICE]: "#7fb2d9",
     [T.ICE_SMOOTH]: "#a9d7f2",
-    [T.TREE]: "#5a718f",
   };
   for (let ty = 0; ty < map.size; ty++)
     for (let tx = 0; tx < map.size; tx++) {

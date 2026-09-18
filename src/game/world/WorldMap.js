@@ -9,7 +9,7 @@
 //  Здесь будущее: чанки и on-demand загрузка реализуются
 //  ВНУТРИ этого класса (get/set начнут читать из чанков),
 //  а потребители (симуляция, рендер) не изменятся.
-//  decor — визуальный слой (деревья с точками отрисовки).
+//  decor — визуальный слой (люки, лужи с точками отрисовки).
 // ============================================================
 import { TILE } from "../core/Constants.js";
 import { T, cellOf } from "./tiles.js";
@@ -20,7 +20,7 @@ export class WorldMap {
     this.seed = seed;
     this.size = size; // тайлов по стороне
     this.tiles = tiles; // Uint8Array size*size
-    this.decor = []; // { kind:"tree", x, y, sway }
+    this.decor = []; // { kind:"manhole"|"puddle", x, y, ... }
     this.bands = null; // индекс: band[радиус] → [индексы проходимых ячеек]
     this.houseData = new Map(); // метаданные домов: key = "x,y" → { height, windows, sign }
     this.objects = []; // уличные объекты (префабы)

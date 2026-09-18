@@ -17,7 +17,6 @@ import {
   drawDeadPlayer,
   drawEnemy,
   drawPickup,
-  drawTree,
   drawPellets,
   drawAmmoPickup,
 } from "./painters.js";
@@ -198,8 +197,6 @@ export class Renderer {
       // проход сущностей с y-сортировкой: всё, что ниже по Y, рисуется
       // позже (поверх) — так возникает псевдо-глубина
       const list = [];
-      for (const tree of sim.map.decor)
-        list.push({ y: tree.y, draw: () => drawTree(ctx, tree, this.time) });
       for (const pickup of sim.pickups)
         list.push({ y: pickup.y, draw: () => drawPickup(ctx, pickup) });
       for (const ammo of sim.ammoPickups)

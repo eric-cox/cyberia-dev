@@ -51,12 +51,6 @@ const PAL_BRUTE = {
   e: "#6fd6ff",
   E: "#d6f6ff",
 };
-const PAL_TREE = {
-  k: "#141a26",
-  t: "#3a3342",
-  d: "#2a2430",
-  s: "#dfe9f5",
-};
 
 // ---------- игрок (Анахронизм) ----------
 // Реалистичные пропорции (WORLD §3.2): ушанка + тёмный провал лица,
@@ -577,47 +571,6 @@ const awakenedArt = defineArt({
   },
 });
 
-// ---------- мёртвое дерево ----------
-const treeArt = defineArt({
-  id: "tree",
-  w: 16,
-  h: 24,
-  palette: PAL_TREE,
-  animations: {
-    idle: {
-      fps: 1,
-      frames: [
-        [
-          "................",
-          "................",
-          ".......kk.......",
-          "......kttk......",
-          "...k..kttk..k...",
-          "...kk.kttk.kk...",
-          "..kttkkttkkttk..",
-          "...kk.kttks.kk..",
-          "......kttk......",
-          "..k...kttk......",
-          "..kk..kttk..k...",
-          "...kkskttk.kk...",
-          ".....kttttk.....",
-          ".....kttttk.....",
-          "....ktttttk.....",
-          "....ktttttk.....",
-          "....ktttttk.....",
-          "...kttttttk.....",
-          "...kttttttk.....",
-          "...kttttttk.....",
-          "..kttttttttk....",
-          "..kttdtttdttk...",
-          ".kttttttttttk...",
-          ".kkkkkkkkkkkk...",
-        ],
-      ],
-    },
-  },
-});
-
 // ---------- артефакты (12×12) ----------
 const K = "#10151f";
 const hatArt = defineArt({
@@ -883,7 +836,6 @@ export const ART_MODULES = [
   awakenedArt,
   shotgunArt,
   shellArt,
-  treeArt,
   hatArt,
   jacketArt,
   pantsArt,
