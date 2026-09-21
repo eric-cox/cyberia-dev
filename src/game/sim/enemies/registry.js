@@ -4,7 +4,7 @@
 //  Механические/подземные классы встанут сюда же.
 // ============================================================
 import { def as houndDef, HoundEnemy } from "./HoundEnemy.js";
-import { def as boarDef, BoarEnemy } from "./BoarEnemy.js";
+import { def as deliveryBotDef, DeliveryBotEnemy } from "./DeliveryBotEnemy.js";
 import { def as bruteDef, BruteEnemy } from "./BruteEnemy.js";
 import { def as sweeperDef, SweeperEnemy } from "./SweeperEnemy.js";
 import { def as ratDef, RatEnemy } from "./RatEnemy.js";
@@ -13,7 +13,7 @@ import { def as awakenedDef, AwakenedEnemy } from "./AwakenedEnemy.js";
 export const ENEMY_TYPES = {
   rat: { def: ratDef, Class: RatEnemy },
   hound: { def: houndDef, Class: HoundEnemy },
-  boar: { def: boarDef, Class: BoarEnemy },
+  delivery_bot: { def: deliveryBotDef, Class: DeliveryBotEnemy },
   brute: { def: bruteDef, Class: BruteEnemy },
   sweeper: { def: sweeperDef, Class: SweeperEnemy },
   awakened: { def: awakenedDef, Class: AwakenedEnemy },

@@ -45,7 +45,7 @@ const PROFILES = {
       types: {
         rat: { center: [8, 9], edge: [16, 17] },
         hound: { center: [6, 7], edge: [4, 5] },
-        boar: { center: [3, 4], edge: [5, 6] },
+        delivery_bot: { center: [3, 4], edge: [5, 6] },
         brute: { center: [0, 1], edge: [3, 4] },
         sweeper: { center: [0, 1], edge: [2, 3] },
         awakened: { center: [0, 0], edge: [0.3, 0.3] },
@@ -58,8 +58,8 @@ const PROFILES = {
         // пул типов охранников по тиру предмета
         pools: {
           1: ["rat", "hound"],
-          2: ["hound", "boar"],
-          3: ["boar", "brute"],
+          2: ["hound", "delivery_bot"],
+          3: ["delivery_bot", "brute"],
         },
       },
     },

@@ -35,13 +35,14 @@ const PAL_HOUND = {
   w: "#cfd8e6", // хром
   r: "#b45a38", // ржавчина
 };
-const PAL_BOAR = {
+const PAL_DELIVERY_BOT = {
   k: "#1c2430",
-  b: "#5f5248",
-  m: "#463c34",
-  e: "#ff3b4e",
-  t: "#e8f2ff",
-  s: "#a8e6ff",
+  m: "#5a6575", // металл (тёмный)
+  l: "#8a95a5", // металл (светлый)
+  e: "#ff3b4e", // красный светодиод
+  r: "#b45a38", // ржавчина
+  w: "#cfd8e6", // хром
+  y: "#d9b54a", // жёлтый (контейнер)
 };
 const PAL_BRUTE = {
   k: "#141a26",
@@ -234,54 +235,63 @@ const houndArt = defineArt({
   },
 });
 
-// ---------- секач (мутировавший кабан) ----------
-// Сетка 22×14, единый пиксель (scale=1). Крупнее робо-пса.
-const drawBoar = ({ step = 0, eye = "#ff3b4e" } = {}) => (p) => {
-  const K = "#1c2430", B = "#5f5248", M = "#463c34", E = eye,
-    T = "#e8f2ff", S = "#a8e6ff";
-  // ледяные наросты на спине
-  p.rect(9, 2, 3, 2, S); p.px(10, 1, S);
-  p.rect(14, 2, 3, 2, S); p.px(15, 1, S);
-  // тело-бочонок
-  p.rect(6, 4, 14, 8, K);
-  p.rect(7, 5, 12, 6, B);
-  p.rect(7, 9, 12, 2, M);
-  p.rect(7, 5, 12, 1, "#6f6156");
-  // голова
-  p.rect(1, 5, 6, 6, K);
-  p.rect(2, 6, 4, 4, B);
-  p.rect(2, 6, 4, 1, "#6f6156");
-  // рыло
-  p.rect(0, 7, 2, 3, K);
-  p.px(0, 8, M);
-  p.px(0, 7, "#8a786a");
-  // клыки (белые, вверх)
-  p.rect(2, 5, 1, 2, T);
-  p.px(3, 4, T);
-  // глаз
-  p.px(5, 7, E);
-  p.px(4, 7, E);
-  // ухо
-  p.px(6, 4, K); p.px(7, 4, K);
-  // ноги (4)
+// ---------- робот-доставщик (ржавеющий андроид с полетевшей прошивкой) ----------
+// Сетка 16×18, единый пиксель (scale=1). Среднего размера.
+const drawDeliveryBot = ({ step = 0, eye = "#ff3b4e" } = {}) => (p) => {
+  const K = "#1c2430", M = "#5a6575", L = "#8a95a5", E = eye,
+    R = "#b45a38", W = "#cfd8e6", Y = "#d9b54a";
+  
+  // гусеницы/колёса (2 шт)
   const lift = step ? 1 : 0;
-  p.rect(8, 12, 2, 2 - lift, K);
-  p.rect(12, 12, 2, 1 + lift, K);
-  p.rect(16, 12, 2, 2 - lift, K);
-  p.rect(19, 12, 2, 1 + lift, K);
-  // хвостик
-  p.px(21, 5, K); p.px(21, 6, K);
+  p.rect(2, 15, 4, 3 - lift, K);
+  p.rect(3, 16, 2, 2 - lift, M);
+  p.rect(10, 15, 4, 2 + lift, K);
+  p.rect(11, 16, 2, 1 + lift, M);
+  
+  // корпус (прямоугольный, ржавый)
+  p.rect(1, 6, 14, 10, K);
+  p.rect(2, 7, 12, 8, M);
+  p.rect(2, 7, 12, 1, L); // верхний блик
+  // ржавчина
+  p.px(4, 9, R);
+  p.px(8, 11, R);
+  p.px(11, 8, R);
+  p.px(3, 13, R);
+  
+  // контейнер для доставки (жёлтый, на спине)
+  p.rect(3, 3, 10, 4, K);
+  p.rect(4, 4, 8, 2, Y);
+  p.px(5, 4, W); // блик
+  // крышка контейнера приоткрыта (сломан)
+  p.rect(3, 2, 10, 1, K);
+  p.px(12, 2, K);
+  
+  // манипулятор-клешня (спереди, тянется к "еде")
+  p.rect(0, 8, 2, 3, K);
+  p.rect(0, 11, 3, 2, K);
+  p.px(0, 11, L); // кончик клешни
+  p.px(2, 11, L);
+  
+  // глаз-сенсор (один, красный, мигает)
+  p.rect(6, 9, 4, 3, K);
+  p.rect(7, 10, 2, 1, E);
+  
+  // антенна (сломана, торчит вбок)
+  p.rect(13, 1, 1, 3, K);
+  p.px(14, 1, K);
+  p.px(14, 0, R); // ржавая
 };
-const boarArt = defineArt({
-  id: "boar",
-  w: 22,
-  h: 14,
-  palette: PAL_BOAR,
+
+const deliveryBotArt = defineArt({
+  id: "delivery_bot",
+  w: 16,
+  h: 18,
+  palette: PAL_DELIVERY_BOT,
   animations: {
-    idle: { fps: 2, frames: [drawBoar({ step: 0 })] },
-    walk: { fps: 7, frames: [drawBoar({ step: 0 }), drawBoar({ step: 1 })] },
-    windup: { fps: 2, frames: [drawBoar({ step: 0, eye: "#d6f6ff" })] },
-    attack: { fps: 8, frames: [drawBoar({ step: 1, eye: "#d6f6ff" })] },
+    idle: { fps: 2, frames: [drawDeliveryBot({ step: 0 })] },
+    walk: { fps: 7, frames: [drawDeliveryBot({ step: 0 }), drawDeliveryBot({ step: 1 })] },
+    windup: { fps: 2, frames: [drawDeliveryBot({ step: 0, eye: "#d6f6ff" })] },
+    attack: { fps: 8, frames: [drawDeliveryBot({ step: 1, eye: "#d6f6ff" })] },
   },
 });
 
@@ -830,7 +840,7 @@ export const ART_MODULES = [
   playerArt,
   ratArt,
   houndArt,
-  boarArt,
+  deliveryBotArt,
   bruteArt,
   sweeperArt,
   awakenedArt,
