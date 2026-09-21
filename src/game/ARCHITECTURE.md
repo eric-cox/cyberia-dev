@@ -133,6 +133,32 @@
 - Новые слоты экипировки: ключ в `systems/SaveStore.js` (defaults.equipped)
   + `data/items.SLOT_NAMES`; `Equipment` работает по `item.slot` автоматически.
 
+---
+
+## Принципы рефакторинга
+
+Код следует принципам:
+
+### KISS (Keep It Simple, Stupid)
+- Упрощены циклы рендеринга (объединены в один проход)
+- Убраны избыточные проверки и дублирование кода
+- Константы вынесены в `streetTypes.js` вместо магических чисел
+
+### YAGNI (You Aren't Gonna Need It)
+- Удалён мёртвый код (bestiary.js, streetPrefabs.js)
+- Упрощена система типов тайлов (только ROAD и HOUSE)
+- Убраны неиспользуемые функции
+
+### SoC (Separation of Concerns)
+- Генерация мусора/масла вынесена в отдельные функции (`generateDebris`, `generateOil`)
+- Визуальные параметры отделены от логики (`DEBRIS_VISUAL`, `OIL_VISUAL`)
+- Физика движения изолирована в `Movement.js`
+
+### PoLS (Principle of Least Surprise)
+- Единообразные имена: `DEBRIS_TYPE`, `SURFACE_TYPE`, `DEBRIS_PARAMS`
+- Предсказуемая структура: все параметры поверхности в `streetTypes.js`
+- Понятные функции: `clearStartingZone`, `generateDebris`, `generateOil`
+
 ### Карта (городской район, уличная сеть, многослойный рендеринг)
 
 #### Система ячеек
@@ -144,6 +170,10 @@
 - **`world/streetTypes.js`**:
   - `DEBRIS_TYPE` — мусор (NONE/LIGHT/MEDIUM/HEAVY), замедляет движение
   - `SURFACE_TYPE` — поверхность (NORMAL/OIL), масло даёт инерцию 1.0
+  - `DEBRIS_PARAMS` — множители скорости для каждого типа мусора
+  - `DEBRIS_CHANCE` / `OIL_CHANCE` — шансы генерации по типу улицы
+  - `DEBRIS_DISTRIBUTION` — распределение типов мусора
+  - `DEBRIS_VISUAL` / `OIL_VISUAL` — визуальные параметры для рендеринга
 
 #### Физика движения
 - **`sim/Movement.js`**: скорость «догоняет» желаемую со скоростью, зависящей от инерции

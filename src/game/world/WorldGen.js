@@ -8,7 +8,14 @@ import { T } from "./tiles.js";
 import { mulberry32 } from "../core/Rng.js";
 import { WorldMap } from "./WorldMap.js";
 import { StreetNetwork } from "./streetNetwork.js";
-import { STREET_TYPE, DEBRIS_TYPE, SURFACE_TYPE } from "./streetTypes.js";
+import { 
+  STREET_TYPE, 
+  DEBRIS_TYPE, 
+  SURFACE_TYPE,
+  DEBRIS_CHANCE,
+  DEBRIS_DISTRIBUTION,
+  OIL_CHANCE
+} from "./streetTypes.js";
 import { getRandomPrefab } from "./prefabs.js";
 
 // ---------- Главная функция генерации ----------
@@ -32,18 +39,8 @@ export function generateWorld(seed) {
       const mapIdx = y * MAP_TILES + x;
 
       // Конвертируем типы улиц в типы тайлов карты
-      if (streetType === STREET_TYPE.ROADWAY || 
-          streetType === STREET_TYPE.SIDEWALK || 
-          streetType === STREET_TYPE.PLAZA) {
-        // Улица — это дорога (проходимая поверхность)
-        map.tiles[mapIdx] = T.ROAD;
-      } else if (streetType === STREET_TYPE.BUILDING) {
-        // Зона застройки — будет заполнена зданиями
-        map.tiles[mapIdx] = T.HOUSE;
-      } else {
-        // По умолчанию — дорога
-        map.tiles[mapIdx] = T.ROAD;
-      }
+      // Здания -> HOUSE, всё остальное (дороги, тротуары, площади) -> ROAD
+      map.tiles[mapIdx] = streetType === STREET_TYPE.BUILDING ? T.HOUSE : T.ROAD;
     }
   }
 
@@ -61,23 +58,7 @@ export function generateWorld(seed) {
   generateDebrisAndOil(map, streetNetwork, rng);
 
   // ========== ЭТАП 7: Финализация ==========
-  // Стартовая поляна в центре (чистая, без мусора и масла)
-  const C = MAP_TILES / 2;
-  for (let dy = -3; dy <= 3; dy++) {
-    for (let dx = -3; dx <= 3; dx++) {
-      const tx = C + dx;
-      const ty = C + dy;
-      if (tx >= 0 && ty >= 0 && tx < MAP_TILES && ty < MAP_TILES) {
-        if (map.get(tx, ty) !== T.ROAD) {
-          map.set(tx, ty, T.ROAD);
-        }
-        // Очищаем стартовую зону от мусора и масла
-        const idx = ty * MAP_TILES + tx;
-        map.debris[idx] = DEBRIS_TYPE.NONE;
-        map.surface[idx] = SURFACE_TYPE.NORMAL;
-      }
-    }
-  }
+  clearStartingZone(map);
 
   // Сохраняем данные уличной сети в карте
   map.streetNetwork = streetNetwork;
@@ -319,25 +300,60 @@ function generateDebrisAndOil(map, streetNetwork, rng) {
         continue;
       }
       
-      // Шанс мусора: 15% на тротуарах, 10% на дорогах
-      const debrisChance = streetType === STREET_TYPE.SIDEWALK ? 0.15 : 0.10;
-      if (rng() < debrisChance) {
-        // Распределяем типы мусора: 50% лёгкий, 35% средний, 15% тяжёлый
-        const roll = rng();
-        if (roll < 0.50) {
-          map.debris[mapIdx] = DEBRIS_TYPE.LIGHT;
-        } else if (roll < 0.85) {
-          map.debris[mapIdx] = DEBRIS_TYPE.MEDIUM;
-        } else {
-          map.debris[mapIdx] = DEBRIS_TYPE.HEAVY;
-        }
+      // Генерация мусора
+      generateDebris(map, mapIdx, streetType, rng);
+      
+      // Генерация масла
+      generateOil(map, mapIdx, streetType, rng);
+    }
+  }
+}
+
+// Генерация мусора на одном тайле
+function generateDebris(map, mapIdx, streetType, rng) {
+  const chance = DEBRIS_CHANCE[streetType] || 0;
+  if (rng() >= chance) return;
+  
+  const roll = rng();
+  if (roll < DEBRIS_DISTRIBUTION.LIGHT) {
+    map.debris[mapIdx] = DEBRIS_TYPE.LIGHT;
+  } else if (roll < DEBRIS_DISTRIBUTION.MEDIUM) {
+    map.debris[mapIdx] = DEBRIS_TYPE.MEDIUM;
+  } else {
+    map.debris[mapIdx] = DEBRIS_TYPE.HEAVY;
+  }
+}
+
+// Генерация масла на одном тайле
+function generateOil(map, mapIdx, streetType, rng) {
+  const chance = OIL_CHANCE[streetType] || 0;
+  if (rng() < chance) {
+    map.surface[mapIdx] = SURFACE_TYPE.OIL;
+  }
+}
+
+// Очистка стартовой зоны в центре карты
+function clearStartingZone(map) {
+  const center = MAP_TILES / 2;
+  const radius = 3;
+  
+  for (let dy = -radius; dy <= radius; dy++) {
+    for (let dx = -radius; dx <= radius; dx++) {
+      const tx = center + dx;
+      const ty = center + dy;
+      
+      if (tx < 0 || ty < 0 || tx >= MAP_TILES || ty >= MAP_TILES) continue;
+      
+      const idx = ty * MAP_TILES + tx;
+      
+      // Гарантируем дорогу в стартовой зоне
+      if (map.tiles[idx] !== T.ROAD) {
+        map.tiles[idx] = T.ROAD;
       }
       
-      // Шанс масла: 3% на дорогах, 1% на тротуарах
-      const oilChance = streetType === STREET_TYPE.ROADWAY ? 0.03 : 0.01;
-      if (rng() < oilChance) {
-        map.surface[mapIdx] = SURFACE_TYPE.OIL;
-      }
+      // Очищаем от мусора и масла
+      map.debris[idx] = DEBRIS_TYPE.NONE;
+      map.surface[idx] = SURFACE_TYPE.NORMAL;
     }
   }
 }

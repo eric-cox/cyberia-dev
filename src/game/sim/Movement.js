@@ -10,27 +10,32 @@
 
 import { DEBRIS_PARAMS, SURFACE_PARAMS } from "../world/streetTypes.js";
 
+// Константы физики движения
+const MOVEMENT_CONSTANTS = {
+  BASE_RESPONSE: 0.7,      // базовая скорость реакции (1/сек)
+  GRIP_MULTIPLIER: 12,     // множитель сцепления
+  DEFAULT_SURFACE: 0,      // тип поверхности по умолчанию
+  DEFAULT_DEBRIS: 0,       // тип мусора по умолчанию
+};
+
 export function steer(e, desiredX, desiredY, map, dt) {
-  // Получаем тип поверхности (масло или обычная дорога)
+  // Получаем параметры поверхности и мусора
   const surfaceType = map.surfaceAt(e.x, e.y);
-  const surfaceParams = SURFACE_PARAMS[surfaceType] || SURFACE_PARAMS[0];
-  const inertia = surfaceParams.inertia;
-  
-  // Получаем тип загрязнения (мусор)
   const debrisType = map.debrisAt(e.x, e.y);
-  const debrisParams = DEBRIS_PARAMS[debrisType] || DEBRIS_PARAMS[0];
-  const speedMul = debrisParams.speedMul;
   
-  // Применяем замедление от мусора к желаемой скорости
-  const adjustedDesiredX = desiredX * speedMul;
-  const adjustedDesiredY = desiredY * speedMul;
+  const surfaceParams = SURFACE_PARAMS[surfaceType] || SURFACE_PARAMS[MOVEMENT_CONSTANTS.DEFAULT_SURFACE];
+  const debrisParams = DEBRIS_PARAMS[debrisType] || DEBRIS_PARAMS[MOVEMENT_CONSTANTS.DEFAULT_DEBRIS];
   
-  // Инерция от масла
-  const grip = 1 - inertia;
-  const response = 0.7 + grip * 12; // 1/сек: как быстро скорость меняется
-  // Доля пути до желаемой скорости за этот кадр (0..1).
-  // Малая доля на масле = скорость меняется медленно = скольжение.
+  // Применяем замедление от мусора
+  const adjustedDesiredX = desiredX * debrisParams.speedMul;
+  const adjustedDesiredY = desiredY * debrisParams.speedMul;
+  
+  // Вычисляем инерцию от поверхности
+  const grip = 1 - surfaceParams.inertia;
+  const response = MOVEMENT_CONSTANTS.BASE_RESPONSE + grip * MOVEMENT_CONSTANTS.GRIP_MULTIPLIER;
   const blend = Math.min(1, response * dt);
+  
+  // Обновляем скорость с учётом инерции
   e.vx += (adjustedDesiredX - e.vx) * blend;
   e.vy += (adjustedDesiredY - e.vy) * blend;
 }

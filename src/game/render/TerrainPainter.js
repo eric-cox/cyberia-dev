@@ -8,7 +8,12 @@
 // ============================================================
 import { TILE } from "../core/Constants.js";
 import { T } from "../world/tiles.js";
-import { DEBRIS_TYPE, SURFACE_TYPE } from "../world/streetTypes.js";
+import { 
+  DEBRIS_TYPE, 
+  SURFACE_TYPE,
+  DEBRIS_VISUAL,
+  OIL_VISUAL
+} from "../world/streetTypes.js";
 import { mulberry32 } from "../core/Rng.js";
 import { renderStreets } from "./StreetRenderer.js";
 
@@ -19,62 +24,32 @@ export function paintTerrain(map) {
   const ctx = cv.getContext("2d");
   const rng = mulberry32((map.seed ^ 0x5eedbeef) >>> 0);
 
-  // ========== Рендеринг улиц (если есть уличная сеть) ==========
+  // Рендеринг улиц (если есть уличная сеть)
   if (map.streetNetwork) {
     renderStreets(ctx, map.streetNetwork);
   }
 
-  // ========== Рендеринг остальных тайлов ==========
+  // Единый проход по всем тайлам
   for (let ty = 0; ty < map.size; ty++) {
     for (let tx = 0; tx < map.size; tx++) {
-      const t = map.get(tx, ty);
       const px = tx * TILE;
       const py = ty * TILE;
-
-      // Пропускаем улицы (уже отрисованы)
-      if (map.streetNetwork) {
-        const streetIdx = ty * map.size + tx;
-        const streetType = map.streetNetwork.streetType[streetIdx];
-        if (streetType === 1 || streetType === 2 || streetType === 3) {
-          // ROADWAY, SIDEWALK, PLAZA — уже отрисованы
-          continue;
-        }
-      }
-
-      if (t === T.HOUSE) {
-        // отрисовка крыши здания (вид сверху)
+      const tileType = map.get(tx, ty);
+      
+      // Пропускаем улицы (уже отрисованы StreetRenderer)
+      if (isStreetTile(map, tx, ty)) continue;
+      
+      // Рисуем здания
+      if (tileType === T.HOUSE) {
         paintBuildingRoof(ctx, map, tx, ty, px, py, rng);
       }
+      
+      // Рисуем масло и мусор на дорогах
+      paintSurfaceDetails(ctx, map, tx, ty, px, py, rng);
     }
   }
 
-  // ========== Отрисовка мусора и масла на дорогах ==========
-  if (map.debris && map.surface) {
-    for (let ty = 0; ty < map.size; ty++) {
-      for (let tx = 0; tx < map.size; tx++) {
-        const idx = ty * map.size + tx;
-        const debrisType = map.debris[idx];
-        const surfaceType = map.surface[idx];
-        
-        if (debrisType !== DEBRIS_TYPE.NONE || surfaceType !== SURFACE_TYPE.NORMAL) {
-          const px = tx * TILE;
-          const py = ty * TILE;
-          
-          // Рисуем масло (под мусором)
-          if (surfaceType === SURFACE_TYPE.OIL) {
-            paintOil(ctx, px, py, rng);
-          }
-          
-          // Рисуем мусор (поверх масла)
-          if (debrisType !== DEBRIS_TYPE.NONE) {
-            paintDebris(ctx, px, py, debrisType, rng);
-          }
-        }
-      }
-    }
-  }
-
-  // ========== Отрисовка уличных объектов (префабы) ==========
+  // Рендеринг уличных объектов (префабы)
   if (map.objects) {
     for (const obj of map.objects) {
       if (!obj.isCollision) {
@@ -86,37 +61,60 @@ export function paintTerrain(map) {
   return cv;
 }
 
+// Проверка, является ли тайл улицей
+function isStreetTile(map, tx, ty) {
+  if (!map.streetNetwork) return false;
+  const streetIdx = ty * map.size + tx;
+  const streetType = map.streetNetwork.streetType[streetIdx];
+  return streetType >= 1 && streetType <= 3; // ROADWAY, SIDEWALK, PLAZA
+}
+
+// Отрисовка деталей поверхности (масло и мусор)
+function paintSurfaceDetails(ctx, map, tx, ty, px, py, rng) {
+  if (!map.debris || !map.surface) return;
+  
+  const idx = ty * map.size + tx;
+  const debrisType = map.debris[idx];
+  const surfaceType = map.surface[idx];
+  
+  // Пропускаем чистые поверхности
+  if (debrisType === DEBRIS_TYPE.NONE && surfaceType === SURFACE_TYPE.NORMAL) return;
+  
+  // Рисуем масло (под мусором)
+  if (surfaceType === SURFACE_TYPE.OIL) {
+    paintOil(ctx, px, py, rng);
+  }
+  
+  // Рисуем мусор (поверх масла)
+  if (debrisType !== DEBRIS_TYPE.NONE) {
+    paintDebris(ctx, px, py, debrisType, rng);
+  }
+}
+
 // ---------- разлитое масло ----------
 function paintOil(ctx, px, py, rng) {
+  const { baseColor, highlightColor, margin, variance, highlightSize, highlightOffset } = OIL_VISUAL;
+  
   // Чёрное маслянистое пятно
-  ctx.fillStyle = "rgba(20, 20, 20, 0.7)";
-  const oilX = px + 2 + Math.floor(rng() * 4);
-  const oilY = py + 2 + Math.floor(rng() * 4);
-  const oilW = TILE - 4 - Math.floor(rng() * 4);
-  const oilH = TILE - 4 - Math.floor(rng() * 4);
+  ctx.fillStyle = baseColor;
+  const oilX = px + margin + Math.floor(rng() * variance);
+  const oilY = py + margin + Math.floor(rng() * variance);
+  const oilW = TILE - margin * 2 - Math.floor(rng() * variance);
+  const oilH = TILE - margin * 2 - Math.floor(rng() * variance);
   ctx.fillRect(oilX, oilY, oilW, oilH);
   
   // Блик на масле
-  ctx.fillStyle = "rgba(60, 60, 60, 0.5)";
-  ctx.fillRect(oilX + 2, oilY + 2, 3, 2);
+  ctx.fillStyle = highlightColor;
+  ctx.fillRect(oilX + highlightOffset, oilY + highlightOffset, highlightSize.w, highlightSize.h);
 }
 
 // ---------- мусор ----------
 function paintDebris(ctx, px, py, debrisType, rng) {
-  const colors = {
-    [DEBRIS_TYPE.LIGHT]: ["#6b6b6b", "#5a5a5a"],
-    [DEBRIS_TYPE.MEDIUM]: ["#4a4a4a", "#3a3a3a", "#5a5a5a"],
-    [DEBRIS_TYPE.HEAVY]: ["#3a3a3a", "#2a2a2a", "#4a4a4a", "#5a5a5a"],
-  };
+  const visual = DEBRIS_VISUAL[debrisType] || DEBRIS_VISUAL[DEBRIS_TYPE.LIGHT];
+  const { colors, count } = visual;
   
-  const debrisColors = colors[debrisType] || colors[DEBRIS_TYPE.LIGHT];
-  
-  // Количество мусора зависит от типа
-  const debrisCount = debrisType === DEBRIS_TYPE.LIGHT ? 3 :
-                      debrisType === DEBRIS_TYPE.MEDIUM ? 6 : 10;
-  
-  for (let i = 0; i < debrisCount; i++) {
-    ctx.fillStyle = debrisColors[Math.floor(rng() * debrisColors.length)];
+  for (let i = 0; i < count; i++) {
+    ctx.fillStyle = colors[Math.floor(rng() * colors.length)];
     const dx = px + Math.floor(rng() * TILE);
     const dy = py + Math.floor(rng() * TILE);
     const size = 1 + Math.floor(rng() * 2);

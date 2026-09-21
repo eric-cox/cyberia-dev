@@ -64,6 +64,51 @@ export const DEBRIS_PARAMS = {
   [DEBRIS_TYPE.HEAVY]: { speedMul: 0.5, name: "Сильный мусор" },
 };
 
+// Шансы генерации мусора (по типу улицы)
+export const DEBRIS_CHANCE = {
+  [STREET_TYPE.ROADWAY]: 0.10,
+  [STREET_TYPE.SIDEWALK]: 0.15,
+};
+
+// Распределение типов мусора (кумулятивные вероятности)
+export const DEBRIS_DISTRIBUTION = {
+  LIGHT: 0.50,  // 50% лёгкий
+  MEDIUM: 0.85, // 35% средний (50-85%)
+  HEAVY: 1.00,  // 15% тяжёлый (85-100%)
+};
+
+// Шансы генерации масла (по типу улицы)
+export const OIL_CHANCE = {
+  [STREET_TYPE.ROADWAY]: 0.03,
+  [STREET_TYPE.SIDEWALK]: 0.01,
+};
+
+// Визуальные параметры мусора
+export const DEBRIS_VISUAL = {
+  [DEBRIS_TYPE.LIGHT]: {
+    colors: ["#6b6b6b", "#5a5a5a"],
+    count: 3,
+  },
+  [DEBRIS_TYPE.MEDIUM]: {
+    colors: ["#4a4a4a", "#3a3a3a", "#5a5a5a"],
+    count: 6,
+  },
+  [DEBRIS_TYPE.HEAVY]: {
+    colors: ["#3a3a3a", "#2a2a2a", "#4a4a4a", "#5a5a5a"],
+    count: 10,
+  },
+};
+
+// Визуальные параметры масла
+export const OIL_VISUAL = {
+  baseColor: "rgba(20, 20, 20, 0.7)",
+  highlightColor: "rgba(60, 60, 60, 0.5)",
+  margin: 2,
+  variance: 4,
+  highlightSize: { w: 3, h: 2 },
+  highlightOffset: 2,
+};
+
 // Типы поверхностей (для инерции)
 export const SURFACE_TYPE = {
   NORMAL: 0, // обычная дорога (без скольжения)
