@@ -19,7 +19,6 @@ export class StreetNetwork {
     
     // Дополнительные данные для рендеринга
     this.neonNodes = [];
-    this.puddles = [];
     this.manholes = [];
   }
 
@@ -437,16 +436,6 @@ export class StreetNetwork {
           if (this.rng() < 0.03) {
             this.decoration[idx] = 2; // Маркер люка
             this.manholes.push({ x, y });
-          }
-
-          // Лужи (5% вероятность)
-          if (this.rng() < 0.05) {
-            this.puddles.push({ x, y, size: 1 + Math.floor(this.rng() * 2) });
-          }
-        } else if (type === STREET_TYPE.SIDEWALK) {
-          // Мусор на тротуарах (10% вероятность)
-          if (this.rng() < 0.1) {
-            this.decoration[idx] = 3; // Маркер мусора
           }
         }
       }

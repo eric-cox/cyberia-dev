@@ -8,13 +8,17 @@ import { T } from "./tiles.js";
 import { mulberry32 } from "../core/Rng.js";
 import { WorldMap } from "./WorldMap.js";
 import { StreetNetwork } from "./streetNetwork.js";
-import { STREET_TYPE } from "./streetTypes.js";
+import { STREET_TYPE, DEBRIS_TYPE, SURFACE_TYPE } from "./streetTypes.js";
 import { getRandomPrefab } from "./prefabs.js";
 
 // ---------- Главная функция генерации ----------
 export function generateWorld(seed) {
   const rng = mulberry32(seed);
   const map = new WorldMap(seed, MAP_TILES, new Uint8Array(MAP_TILES * MAP_TILES));
+  
+  // Инициализация массивов для загрязнения и поверхностей
+  map.debris = new Uint8Array(MAP_TILES * MAP_TILES);
+  map.surface = new Uint8Array(MAP_TILES * MAP_TILES);
 
   // ========== ЭТАП 1: Генерация уличной сети ==========
   const streetNetwork = new StreetNetwork(rng);
@@ -31,14 +35,14 @@ export function generateWorld(seed) {
       if (streetType === STREET_TYPE.ROADWAY || 
           streetType === STREET_TYPE.SIDEWALK || 
           streetType === STREET_TYPE.PLAZA) {
-        // Улица — это снег (проходимая поверхность)
-        map.tiles[mapIdx] = T.SNOW;
+        // Улица — это дорога (проходимая поверхность)
+        map.tiles[mapIdx] = T.ROAD;
       } else if (streetType === STREET_TYPE.BUILDING) {
         // Зона застройки — будет заполнена зданиями
         map.tiles[mapIdx] = T.HOUSE;
       } else {
-        // По умолчанию — снег
-        map.tiles[mapIdx] = T.SNOW;
+        // По умолчанию — дорога
+        map.tiles[mapIdx] = T.ROAD;
       }
     }
   }
@@ -53,17 +57,24 @@ export function generateWorld(seed) {
   // ========== ЭТАП 5: Добавление деталей ==========
   addStreetDetails(map, streetNetwork, rng);
 
-  // ========== ЭТАП 6: Финализация ==========
-  // Стартовая поляна в центре
+  // ========== ЭТАП 6: Генерация мусора и масла ==========
+  generateDebrisAndOil(map, streetNetwork, rng);
+
+  // ========== ЭТАП 7: Финализация ==========
+  // Стартовая поляна в центре (чистая, без мусора и масла)
   const C = MAP_TILES / 2;
   for (let dy = -3; dy <= 3; dy++) {
     for (let dx = -3; dx <= 3; dx++) {
       const tx = C + dx;
       const ty = C + dy;
       if (tx >= 0 && ty >= 0 && tx < MAP_TILES && ty < MAP_TILES) {
-        if (map.get(tx, ty) !== T.SNOW) {
-          map.set(tx, ty, T.SNOW);
+        if (map.get(tx, ty) !== T.ROAD) {
+          map.set(tx, ty, T.ROAD);
         }
+        // Очищаем стартовую зону от мусора и масла
+        const idx = ty * MAP_TILES + tx;
+        map.debris[idx] = DEBRIS_TYPE.NONE;
+        map.surface[idx] = SURFACE_TYPE.NORMAL;
       }
     }
   }
@@ -140,7 +151,7 @@ function generateBuildings(map, streetNetwork, rng) {
         doorY = zone.y + 1 + Math.floor(rng() * (zone.height - 2));
       }
       
-      map.set(doorX, doorY, T.SNOW); // Дверь = проходимый тайл
+      map.set(doorX, doorY, T.ROAD); // Дверь = проходимый тайл
     }
   }
 }
@@ -273,7 +284,7 @@ function canPlaceObject(map, x, y, width, height) {
       const tx = x + dx;
       const ty = y + dy;
       if (tx >= MAP_TILES || ty >= MAP_TILES) return false;
-      if (map.get(tx, ty) !== T.SNOW) return false;
+      if (map.get(tx, ty) !== T.ROAD) return false;
     }
   }
   return true;
@@ -285,7 +296,7 @@ function placeObject(objects, x, y, prefab) {
 
 // ---------- Добавление деталей улиц ----------
 function addStreetDetails(map, streetNetwork, rng) {
-  // Добавляем люки, лужи, трещины на основе данных streetNetwork
+  // Добавляем люки на основе данных streetNetwork
   for (const manhole of streetNetwork.manholes) {
     map.streetDetails.push({
       kind: "manhole",
@@ -293,13 +304,40 @@ function addStreetDetails(map, streetNetwork, rng) {
       y: manhole.y * TILE + TILE / 2,
     });
   }
-  
-  for (const puddle of streetNetwork.puddles) {
-    map.streetDetails.push({
-      kind: "puddle",
-      x: puddle.x * TILE + TILE / 2,
-      y: puddle.y * TILE + TILE / 2,
-      size: puddle.size,
-    });
+}
+
+// ---------- Генерация мусора и масла на дорогах ----------
+function generateDebrisAndOil(map, streetNetwork, rng) {
+  for (let y = 0; y < MAP_TILES; y++) {
+    for (let x = 0; x < MAP_TILES; x++) {
+      const streetIdx = y * MAP_TILES + x;
+      const streetType = streetNetwork.streetType[streetIdx];
+      const mapIdx = y * MAP_TILES + x;
+      
+      // Мусор и масло только на дорогах и тротуарах
+      if (streetType !== STREET_TYPE.ROADWAY && streetType !== STREET_TYPE.SIDEWALK) {
+        continue;
+      }
+      
+      // Шанс мусора: 15% на тротуарах, 10% на дорогах
+      const debrisChance = streetType === STREET_TYPE.SIDEWALK ? 0.15 : 0.10;
+      if (rng() < debrisChance) {
+        // Распределяем типы мусора: 50% лёгкий, 35% средний, 15% тяжёлый
+        const roll = rng();
+        if (roll < 0.50) {
+          map.debris[mapIdx] = DEBRIS_TYPE.LIGHT;
+        } else if (roll < 0.85) {
+          map.debris[mapIdx] = DEBRIS_TYPE.MEDIUM;
+        } else {
+          map.debris[mapIdx] = DEBRIS_TYPE.HEAVY;
+        }
+      }
+      
+      // Шанс масла: 3% на дорогах, 1% на тротуарах
+      const oilChance = streetType === STREET_TYPE.ROADWAY ? 0.03 : 0.01;
+      if (rng() < oilChance) {
+        map.surface[mapIdx] = SURFACE_TYPE.OIL;
+      }
+    }
   }
 }

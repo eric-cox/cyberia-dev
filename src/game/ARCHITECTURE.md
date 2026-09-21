@@ -54,7 +54,7 @@
 | `hit` | `{ x, y, dmg, voice, name }` | Renderer (кровь, число), Game (звук удара + крик боли, хитстоп, тряска) |
 | `kill` | `{ x, y, name, type, voice }` | Renderer (взрыв, «ПАЛ»), Game (звук + предсмертный вопль) |
 | `hurt` | `{ x, y, dmg }` | Renderer (число, брызги), Game (звук, тряска, мигание экрана) |
-| `cold-tick` | `{ x, y, amount, critical }` | Renderer (число, лёд), Game (треск) |
+| `cold-tick` | `{ x, y, amount, critical }` | Renderer (число), Game (треск) |
 | `pickup` | `{ x, y, item, isNew, equipped, color, statText }` | Renderer (вспышка), Game (звук, тост, снапшот) |
 | `xp` / `levelup` | `{ x, y, amount }` / `{ x, y, level }` | Renderer (число, всплеск), Game (звук, тряска, снапшот) |
 | `shot` | `{ x, y, angle, range, tube }` | Renderer (вспышка, гильза, дым), Game (звук, тряска, снапшот) |
@@ -140,10 +140,15 @@
   и `inertia` (0..1, скольжение). НОВАЯ ЯЧЕЙКА = строка в таблице + палитра в
   `render/TerrainPainter.js`; физика подхватит сама.
 
+#### Типы поверхностей
+- **`world/streetTypes.js`**:
+  - `DEBRIS_TYPE` — мусор (NONE/LIGHT/MEDIUM/HEAVY), замедляет движение
+  - `SURFACE_TYPE` — поверхность (NORMAL/OIL), масло даёт инерцию 1.0
+
 #### Физика движения
 - **`sim/Movement.js`**: скорость «догоняет» желаемую со скоростью, зависящей от инерции
-  ячейки под ногами (снег послушен, гладкий лёд — каток). Работает одинаково для игрока
-  и врагов.
+  ячейки под ногами (обычная дорога — отзывчивое управление, масло — скольжение). Мусор замедляет движение.
+  Работает одинаково для игрока и врагов.
 
 #### Данные и запросы
 - **`world/WorldMap.js`** (`get/set/cellAt/collidesCircle/freeSpot`). Чанковая подгрузка

@@ -20,11 +20,13 @@ export class WorldMap {
     this.seed = seed;
     this.size = size; // тайлов по стороне
     this.tiles = tiles; // Uint8Array size*size
-    this.streetDetails = []; // { kind:"manhole"|"puddle", x, y, ... }
+    this.streetDetails = []; // { kind:"manhole", x, y, ... }
     this.bands = null; // индекс: band[радиус] → [индексы проходимых ячеек]
     this.houseData = new Map(); // метаданные домов: key = "x,y" → { height, windows, sign }
     this.objects = []; // уличные объекты (префабы)
     this.buildings = []; // здания (для отрисовки и логики)
+    this.debris = null; // Uint8Array size*size — типы загрязнения (DEBRIS_TYPE)
+    this.surface = null; // Uint8Array size*size — типы поверхностей (SURFACE_TYPE)
   }
 
   get widthPx() {
@@ -57,6 +59,22 @@ export class WorldMap {
   // Метаданные дома по координатам тайла (null если не дом)
   houseAt(tx, ty) {
     return this.houseData.get(`${tx},${ty}`) || null;
+  }
+  // Тип загрязнения в мировой точке (DEBRIS_TYPE)
+  debrisAt(x, y) {
+    if (!this.debris) return 0;
+    const tx = Math.floor(x / TILE);
+    const ty = Math.floor(y / TILE);
+    if (tx < 0 || ty < 0 || tx >= this.size || ty >= this.size) return 0;
+    return this.debris[ty * this.size + tx];
+  }
+  // Тип поверхности в мировой точке (SURFACE_TYPE)
+  surfaceAt(x, y) {
+    if (!this.surface) return 0;
+    const tx = Math.floor(x / TILE);
+    const ty = Math.floor(y / TILE);
+    if (tx < 0 || ty < 0 || tx >= this.size || ty >= this.size) return 0;
+    return this.surface[ty * this.size + tx];
   }
 
   // --- физика ---

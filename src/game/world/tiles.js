@@ -14,21 +14,13 @@
 // ============================================================
 
 export const T = {
-  SNOW: 0, // обычный снег
-  SNOW_DEEP: 1, // глубокий снег
-  SNOW_VERY_DEEP: 2, // очень глубокий снег
-  HOUSE: 3, // дом (непроходим)
-  ICE: 4, // обычный лёд
-  ICE_SMOOTH: 5, // гладкий лёд
+  ROAD: 0, // дорога/тротуар (проходимая поверхность)
+  HOUSE: 1, // дом (непроходим)
 };
 
 export const TILE_TABLE = [
-  { id: "snow", name: "Обычный снег", speed: 1, inertia: 0.2, solid: false },
-  { id: "snowDeep", name: "Глубокий снег", speed: 0.9, inertia: 0.1, solid: false },
-  { id: "snowVdeep", name: "Очень глубокий снег", speed: 0.7, inertia: 0, solid: false },
-  { id: "house", name: "Дом", speed: 0, inertia: 0.2, solid: true },
-  { id: "ice", name: "Обычный лёд", speed: 1, inertia: 0.5, solid: false },
-  { id: "iceSmooth", name: "Гладкий лёд", speed: 1, inertia: 1, solid: false },
+  { id: "road", name: "Дорога", speed: 1, inertia: 0, solid: false },
+  { id: "house", name: "Дом", speed: 0, inertia: 0, solid: true },
 ];
 
 export function cellOf(t) {

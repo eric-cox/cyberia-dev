@@ -11,7 +11,6 @@ export const PREFABS = {
   crate: { id: "crate", width: 1, height: 1, solid: true, color: "#8a5a3a" },
   barrel: { id: "barrel", width: 1, height: 1, solid: true, color: "#55688a" },
   trash: { id: "trash", width: 1, height: 1, solid: false, color: "#4a4a4a" },
-  puddle: { id: "puddle", width: 1, height: 1, solid: false, color: "rgba(100, 150, 200, 0.4)" },
 };
 
 export function getRandomPrefab(rng) {

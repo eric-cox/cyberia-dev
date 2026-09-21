@@ -47,3 +47,31 @@ export const CURB_SIDE = {
   SOUTH: 4,
   WEST: 8,
 };
+
+// Типы загрязнения дороги (мусор)
+export const DEBRIS_TYPE = {
+  NONE: 0, // чисто
+  LIGHT: 1, // лёгкое загрязнение (немного замедляет)
+  MEDIUM: 2, // среднее загрязнение (средне замедляет)
+  HEAVY: 3, // сильное загрязнение (сильно замедляет)
+};
+
+// Параметры загрязнения (множитель скорости)
+export const DEBRIS_PARAMS = {
+  [DEBRIS_TYPE.NONE]: { speedMul: 1.0, name: "Чисто" },
+  [DEBRIS_TYPE.LIGHT]: { speedMul: 0.85, name: "Лёгкий мусор" },
+  [DEBRIS_TYPE.MEDIUM]: { speedMul: 0.7, name: "Средний мусор" },
+  [DEBRIS_TYPE.HEAVY]: { speedMul: 0.5, name: "Сильный мусор" },
+};
+
+// Типы поверхностей (для инерции)
+export const SURFACE_TYPE = {
+  NORMAL: 0, // обычная дорога (без скольжения)
+  OIL: 1, // разлитое масло (сильное скольжение)
+};
+
+// Параметры поверхностей
+export const SURFACE_PARAMS = {
+  [SURFACE_TYPE.NORMAL]: { inertia: 0, name: "Асфальт" },
+  [SURFACE_TYPE.OIL]: { inertia: 1, name: "Масло" },
+};

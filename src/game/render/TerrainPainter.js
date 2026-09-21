@@ -8,12 +8,9 @@
 // ============================================================
 import { TILE } from "../core/Constants.js";
 import { T } from "../world/tiles.js";
+import { DEBRIS_TYPE, SURFACE_TYPE } from "../world/streetTypes.js";
 import { mulberry32 } from "../core/Rng.js";
 import { renderStreets } from "./StreetRenderer.js";
-
-const SNOW_BASE = ["#dfe9f5", "#cddcf0", "#b3c6e0"];
-const SNOW_SPECK = ["#c9d8ec", "#b9cbe4", "#9fb3d1"];
-const SNOW_HI = ["#ffffff", "#e6f0fb", "#d2e1f4"];
 
 export function paintTerrain(map) {
   const cv = document.createElement("canvas");
@@ -44,34 +41,35 @@ export function paintTerrain(map) {
         }
       }
 
-      if (t === T.ICE || t === T.ICE_SMOOTH) {
-        paintIce(ctx, map, tx, ty, px, py, t === T.ICE_SMOOTH, rng);
-      } else if (t === T.SNOW || t === T.SNOW_DEEP || t === T.SNOW_VERY_DEEP) {
-        // снег (под скалами/деревьями тоже)
-        const depth = t <= T.SNOW_VERY_DEEP ? t : 1;
-        ctx.fillStyle = SNOW_BASE[depth];
-        ctx.fillRect(px, py, TILE, TILE);
-        const n = 5 + Math.floor(rng() * 5);
-        for (let i = 0; i < n; i++) {
-          ctx.fillStyle = rng() < 0.62 ? SNOW_SPECK[depth] : SNOW_HI[depth];
-          ctx.fillRect(
-            px + Math.floor(rng() * TILE),
-            py + Math.floor(rng() * TILE),
-            1,
-            1
-          );
-        }
-        if (depth === 2) {
-          // бархан в очень глубоком снегу
-          ctx.fillStyle = SNOW_HI[2];
-          const wy = py + 3 + Math.floor(rng() * 8);
-          ctx.fillRect(px + 1, wy, TILE - 2 - Math.floor(rng() * 4), 1);
-        }
-      }
-
       if (t === T.HOUSE) {
         // отрисовка крыши здания (вид сверху)
         paintBuildingRoof(ctx, map, tx, ty, px, py, rng);
+      }
+    }
+  }
+
+  // ========== Отрисовка мусора и масла на дорогах ==========
+  if (map.debris && map.surface) {
+    for (let ty = 0; ty < map.size; ty++) {
+      for (let tx = 0; tx < map.size; tx++) {
+        const idx = ty * map.size + tx;
+        const debrisType = map.debris[idx];
+        const surfaceType = map.surface[idx];
+        
+        if (debrisType !== DEBRIS_TYPE.NONE || surfaceType !== SURFACE_TYPE.NORMAL) {
+          const px = tx * TILE;
+          const py = ty * TILE;
+          
+          // Рисуем масло (под мусором)
+          if (surfaceType === SURFACE_TYPE.OIL) {
+            paintOil(ctx, px, py, rng);
+          }
+          
+          // Рисуем мусор (поверх масла)
+          if (debrisType !== DEBRIS_TYPE.NONE) {
+            paintDebris(ctx, px, py, debrisType, rng);
+          }
+        }
       }
     }
   }
@@ -88,56 +86,42 @@ export function paintTerrain(map) {
   return cv;
 }
 
-// ---------- лёд ----------
-function paintIce(ctx, map, tx, ty, px, py, smooth, rng) {
-  ctx.fillStyle = smooth ? "#cfe6f8" : "#a9cbe6";
-  ctx.fillRect(px, py, TILE, TILE);
+// ---------- разлитое масло ----------
+function paintOil(ctx, px, py, rng) {
+  // Чёрное маслянистое пятно
+  ctx.fillStyle = "rgba(20, 20, 20, 0.7)";
+  const oilX = px + 2 + Math.floor(rng() * 4);
+  const oilY = py + 2 + Math.floor(rng() * 4);
+  const oilW = TILE - 4 - Math.floor(rng() * 4);
+  const oilH = TILE - 4 - Math.floor(rng() * 4);
+  ctx.fillRect(oilX, oilY, oilW, oilH);
+  
+  // Блик на масле
+  ctx.fillStyle = "rgba(60, 60, 60, 0.5)";
+  ctx.fillRect(oilX + 2, oilY + 2, 3, 2);
+}
 
-  if (smooth) {
-    // зеркальные блики-полосы
-    ctx.fillStyle = "#eaf6ff";
-    for (let i = 0; i < 3; i++) {
-      const sy = py + 2 + Math.floor(rng() * 11);
-      const sw = 3 + Math.floor(rng() * 6);
-      ctx.fillRect(px + Math.floor(rng() * (TILE - sw)), sy, sw, 1);
-    }
-    ctx.fillStyle = "#9fd8ff";
-    ctx.fillRect(px + Math.floor(rng() * 14), py + Math.floor(rng() * 14), 2, 1);
-  } else {
-    // трещины
-    ctx.fillStyle = "#7fa4c8";
-    let cx = px + 2 + rng() * 8;
-    let cy = py + 1;
-    for (let s = 0; s < 8; s++) {
-      ctx.fillRect(cx | 0, cy | 0, 1, 1);
-      cx += rng() * 2 - 0.7;
-      cy += 1.4;
-    }
-    ctx.fillStyle = "#93b8d9";
-    for (let i = 0; i < 4; i++)
-      ctx.fillRect(
-        px + Math.floor(rng() * TILE),
-        py + Math.floor(rng() * TILE),
-        1,
-        1
-      );
-  }
-
-  // искры
-  ctx.fillStyle = "#ffffff";
-  if (rng() < 0.55)
-    ctx.fillRect(px + Math.floor(rng() * TILE), py + Math.floor(rng() * TILE), 1, 1);
-
-  // тёмная кромка там, где лёд граничит со снегом/скалой
-  const ice = (x, y) => {
-    const tt = map.get(x, y);
-    return tt === T.ICE || tt === T.ICE_SMOOTH;
+// ---------- мусор ----------
+function paintDebris(ctx, px, py, debrisType, rng) {
+  const colors = {
+    [DEBRIS_TYPE.LIGHT]: ["#6b6b6b", "#5a5a5a"],
+    [DEBRIS_TYPE.MEDIUM]: ["#4a4a4a", "#3a3a3a", "#5a5a5a"],
+    [DEBRIS_TYPE.HEAVY]: ["#3a3a3a", "#2a2a2a", "#4a4a4a", "#5a5a5a"],
   };
-  ctx.fillStyle = "#6f97bd";
-  if (!ice(tx, ty - 1)) ctx.fillRect(px, py, TILE, 1);
-  if (!ice(tx, ty + 1)) ctx.fillRect(px, py + TILE - 1, TILE, 1);
-  if (!ice(tx - 1, ty)) ctx.fillRect(px, py, 1, TILE);
-  if (!ice(tx + 1, ty)) ctx.fillRect(px + TILE - 1, py, 1, TILE);
+  
+  const debrisColors = colors[debrisType] || colors[DEBRIS_TYPE.LIGHT];
+  
+  // Количество мусора зависит от типа
+  const debrisCount = debrisType === DEBRIS_TYPE.LIGHT ? 3 :
+                      debrisType === DEBRIS_TYPE.MEDIUM ? 6 : 10;
+  
+  for (let i = 0; i < debrisCount; i++) {
+    ctx.fillStyle = debrisColors[Math.floor(rng() * debrisColors.length)];
+    const dx = px + Math.floor(rng() * TILE);
+    const dy = py + Math.floor(rng() * TILE);
+    const size = 1 + Math.floor(rng() * 2);
+    ctx.fillRect(dx, dy, size, size);
+  }
 }
 
 
@@ -232,12 +216,8 @@ export function paintMinimapBase(map) {
   cv.height = map.size;
   const ctx = cv.getContext("2d");
   const colors = {
-    [T.SNOW]: "#c9d8ec",
-    [T.SNOW_DEEP]: "#b0c3de",
-    [T.SNOW_VERY_DEEP]: "#93aad0",
+    [T.ROAD]: "#4a4a4a",
     [T.HOUSE]: "#3d4d6b",
-    [T.ICE]: "#7fb2d9",
-    [T.ICE_SMOOTH]: "#a9d7f2",
   };
   for (let ty = 0; ty < map.size; ty++)
     for (let tx = 0; tx < map.size; tx++) {
