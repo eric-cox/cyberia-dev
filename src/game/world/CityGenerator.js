@@ -19,21 +19,22 @@ export const TILE_TYPES = {
 // Соседи для каждого типа тайла
 // Формат: { direction: [allowed_neighbors] }
 // direction: 0=top, 1=right, 2=bottom, 3=left
+// Упрощённые правила для избежания противоречий
 const TILE_RULES = {
   [TILE_TYPES.WALL]: {
     neighbors: {
-      0: [TILE_TYPES.WALL, TILE_TYPES.SIDEWALK],
-      1: [TILE_TYPES.WALL, TILE_TYPES.SIDEWALK],
-      2: [TILE_TYPES.WALL, TILE_TYPES.SIDEWALK],
-      3: [TILE_TYPES.WALL, TILE_TYPES.SIDEWALK],
+      0: [TILE_TYPES.WALL, TILE_TYPES.SIDEWALK, TILE_TYPES.ROAD],
+      1: [TILE_TYPES.WALL, TILE_TYPES.SIDEWALK, TILE_TYPES.ROAD],
+      2: [TILE_TYPES.WALL, TILE_TYPES.SIDEWALK, TILE_TYPES.ROAD],
+      3: [TILE_TYPES.WALL, TILE_TYPES.SIDEWALK, TILE_TYPES.ROAD],
     }
   },
   [TILE_TYPES.ROAD]: {
     neighbors: {
-      0: [TILE_TYPES.ROAD, TILE_TYPES.SIDEWALK, TILE_TYPES.WALL],
-      1: [TILE_TYPES.ROAD, TILE_TYPES.SIDEWALK, TILE_TYPES.WALL],
-      2: [TILE_TYPES.ROAD, TILE_TYPES.SIDEWALK, TILE_TYPES.WALL],
-      3: [TILE_TYPES.ROAD, TILE_TYPES.SIDEWALK, TILE_TYPES.WALL],
+      0: [TILE_TYPES.ROAD, TILE_TYPES.SIDEWALK, TILE_TYPES.WALL, TILE_TYPES.HOUSE, TILE_TYPES.STALL],
+      1: [TILE_TYPES.ROAD, TILE_TYPES.SIDEWALK, TILE_TYPES.WALL, TILE_TYPES.HOUSE, TILE_TYPES.STALL],
+      2: [TILE_TYPES.ROAD, TILE_TYPES.SIDEWALK, TILE_TYPES.WALL, TILE_TYPES.HOUSE, TILE_TYPES.STALL],
+      3: [TILE_TYPES.ROAD, TILE_TYPES.SIDEWALK, TILE_TYPES.WALL, TILE_TYPES.HOUSE, TILE_TYPES.STALL],
     }
   },
   [TILE_TYPES.SIDEWALK]: {
@@ -46,18 +47,18 @@ const TILE_RULES = {
   },
   [TILE_TYPES.HOUSE]: {
     neighbors: {
-      0: [TILE_TYPES.HOUSE, TILE_TYPES.SIDEWALK],
-      1: [TILE_TYPES.HOUSE, TILE_TYPES.SIDEWALK],
-      2: [TILE_TYPES.HOUSE, TILE_TYPES.SIDEWALK],
-      3: [TILE_TYPES.HOUSE, TILE_TYPES.SIDEWALK],
+      0: [TILE_TYPES.HOUSE, TILE_TYPES.SIDEWALK, TILE_TYPES.ROAD],
+      1: [TILE_TYPES.HOUSE, TILE_TYPES.SIDEWALK, TILE_TYPES.ROAD],
+      2: [TILE_TYPES.HOUSE, TILE_TYPES.SIDEWALK, TILE_TYPES.ROAD],
+      3: [TILE_TYPES.HOUSE, TILE_TYPES.SIDEWALK, TILE_TYPES.ROAD],
     }
   },
   [TILE_TYPES.STALL]: {
     neighbors: {
-      0: [TILE_TYPES.STALL, TILE_TYPES.SIDEWALK],
-      1: [TILE_TYPES.STALL, TILE_TYPES.SIDEWALK],
-      2: [TILE_TYPES.STALL, TILE_TYPES.SIDEWALK],
-      3: [TILE_TYPES.STALL, TILE_TYPES.SIDEWALK],
+      0: [TILE_TYPES.STALL, TILE_TYPES.SIDEWALK, TILE_TYPES.ROAD],
+      1: [TILE_TYPES.STALL, TILE_TYPES.SIDEWALK, TILE_TYPES.ROAD],
+      2: [TILE_TYPES.STALL, TILE_TYPES.SIDEWALK, TILE_TYPES.ROAD],
+      3: [TILE_TYPES.STALL, TILE_TYPES.SIDEWALK, TILE_TYPES.ROAD],
     }
   },
 };
@@ -222,8 +223,15 @@ export class CityGenerator {
           stack.push({ x: nx, y: ny });
           
           // Если возможностей не осталось - противоречие
+          // Восстанавливаем ячейку, добавляя все типы
           if (neighbor.possibilities.length === 0) {
-            console.warn(`Contradiction at (${nx}, ${ny})`);
+            neighbor.possibilities = [
+              TILE_TYPES.WALL,
+              TILE_TYPES.ROAD,
+              TILE_TYPES.SIDEWALK,
+              TILE_TYPES.HOUSE,
+              TILE_TYPES.STALL,
+            ];
           }
         }
       }
@@ -248,6 +256,7 @@ export class CityGenerator {
       for (let dy = 0; dy < width; dy++) {
         for (let x = 1; x < this.size - 1; x++) { // Не трогаем границы
           this.collapseCellTo(x, y + dy, TILE_TYPES.ROAD);
+          this.propagate(x, y + dy); // Распространяем ограничения
         }
       }
       
@@ -266,6 +275,7 @@ export class CityGenerator {
       for (let dx = 0; dx < width; dx++) {
         for (let y = 1; y < this.size - 1; y++) {
           this.collapseCellTo(x + dx, y, TILE_TYPES.ROAD);
+          this.propagate(x + dx, y); // Распространяем ограничения
         }
       }
       
@@ -283,7 +293,7 @@ export class CityGenerator {
     
     // Этап 2: WFC для заполнения остального пространства
     let iterations = 0;
-    const maxIterations = this.size * this.size * 10;
+    const maxIterations = this.size * this.size * 5; // Уменьшили лимит
     
     while (iterations < maxIterations) {
       // Найти ячейку с минимальной энтропией
@@ -299,7 +309,31 @@ export class CityGenerator {
       iterations++;
     }
     
+    // Этап 3: Принудительно свернуть оставшиеся ячейки
+    this.forceCollapseRemaining();
+    
     return this.toTileMap();
+  }
+  
+  // Принудительно свернуть все оставшиеся ячейки
+  forceCollapseRemaining() {
+    for (let y = 0; y < this.size; y++) {
+      for (let x = 0; x < this.size; x++) {
+        const cell = this.cells[this.idx(x, y)];
+        if (!cell.collapsed) {
+          // Выбираем случайный тип из оставшихся возможностей
+          if (cell.possibilities.length > 0) {
+            const choice = cell.possibilities[Math.floor(this.rng() * cell.possibilities.length)];
+            cell.possibilities = [choice];
+            cell.collapsed = true;
+          } else {
+            // Если возможностей нет, делаем ROAD
+            cell.possibilities = [TILE_TYPES.ROAD];
+            cell.collapsed = true;
+          }
+        }
+      }
+    }
   }
   
   // Преобразовать результат в тайловую карту
