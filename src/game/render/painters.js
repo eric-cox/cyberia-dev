@@ -10,21 +10,45 @@ import { TIER_COLORS } from "../data/items.js";
 // Константы для отрисовки
 const SHADOW_COLOR = "rgba(10,15,30,0.35)";
 
-// ---------- игрок ----------
+// ---------- игрок (ART.MD §7 - вид строго сверху) ----------
 export function drawPlayer(ctx, player, weapon) {
   const anim = player.attackAnimTime > 0 ? "attack" : player.moving ? "walk" : "idle";
   const idx = artSystem.animIndex("player", anim, player.animT);
   // смещение вперёд по направлению взгляда во время выпада
   const lungeX = Math.cos(player.face) * player.lunge * 4;
   const lungeY = Math.sin(player.face) * player.lunge * 4;
+  
+  // Тень (ART.MD §7.2)
   ctx.fillStyle = SHADOW_COLOR;
   ctx.fillRect(Math.round(player.x - 5), Math.round(player.y - 1), 10, 3);
+  
+  // Рисуем персонажа
   artSystem.draw(ctx, "player", anim, idx, player.x + lungeX, player.y + 1, {
     flip: Math.cos(player.face) < 0,
     white: player.flash > 0,
   });
-  // дробовик в руке, повёрнут по направлению прицела
+  
+  // Дробовик в руке
   if (weapon && weapon.kind === "shotgun") drawShotgunInHand(ctx, player);
+  
+  // Светящийся элемент - cyan имплант (ART.MD §7.2)
+  if (player.flash <= 0) {
+    const implantX = player.x + lungeX + 3;
+    const implantY = player.y + lungeY - 6;
+    
+    // Свечение в 3 прохода (ART.MD §2.3)
+    // 1. Гало
+    ctx.fillStyle = "rgba(5, 217, 232, 0.3)"; // Electric Cyan 30%
+    ctx.fillRect(implantX - 2, implantY - 2, 6, 6);
+    
+    // 2. Основной цвет
+    ctx.fillStyle = "#05d9e8";
+    ctx.fillRect(implantX, implantY, 2, 2);
+    
+    // 3. Ядро
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(implantX, implantY, 1, 1);
+  }
 }
 
 // Дробовик рисуется отдельным спрайтом, повёрнутым на p.face:
@@ -76,7 +100,7 @@ export function drawDeadPlayer(ctx, player) {
   ctx.fillRect(player.x - 7, player.y - 4, 14, 5);
 }
 
-// ---------- мутант ----------
+// ---------- мутант (ART.MD §8 - читаемость за 0.5 секунды) ----------
 export function drawEnemy(ctx, enemy) {
   const art = enemy.def.art;
   let anim = "walk";
@@ -88,25 +112,60 @@ export function drawEnemy(ctx, enemy) {
   const idx = artSystem.animIndex(art, anim, enemy.animT);
   const shake = enemy.state === "windup" ? (Math.random() - 0.5) * 1.6 : 0;
 
-  // тень под зверем
+  // Цветной контур (ART.MD §8.3) - 1 пиксель, цвет = тип врага
+  const outlineColors = {
+    rat: "#8b1a1a",           // Тёмно-красный
+    hound: "#1a2a4a",         // Тёмно-синий
+    delivery_bot: "#4a4a4a",  // Серый
+    brute: "#8b1a1a",         // Тёмно-красный
+    sweeper: "#ff6b35",       // Holo Orange
+    awakened: "#7b2cbf",      // Acid Purple
+  };
+  const outlineColor = outlineColors[enemy.type] || "#8b1a1a";
+
+  // Тень
   ctx.fillStyle = SHADOW_COLOR;
   const shadowWidth = enemy.r * 2;
   ctx.fillRect(Math.round(enemy.x - shadowWidth / 2), Math.round(enemy.y - 1), shadowWidth, 3);
-  // Единый масштаб пикселя: все враги рисуются с scale = 1,
-  // а габариты типа заданы размером его арт-сетки.
+  
+  // Цветной контур (ART.MD §8.3)
+  if (enemy.flash <= 0) {
+    ctx.fillStyle = outlineColor;
+    ctx.fillRect(Math.round(enemy.x - shadowWidth / 2 - 1), Math.round(enemy.y - 2), shadowWidth + 2, 1);
+    ctx.fillRect(Math.round(enemy.x - shadowWidth / 2 - 1), Math.round(enemy.y + 1), shadowWidth + 2, 1);
+  }
+  
+  // Единый масштаб пикселя: все враги рисуются с scale = 1
   artSystem.draw(ctx, art, anim, idx, enemy.x + shake, enemy.y + 1, {
     flip: enemy.flip,
-    white: enemy.flash > 0,
+    white: enemy.flash > 0, // Flash white при уроне (ART.MD §8.3)
   });
 
-  // полоса HP при уроне
+  // Полоса HP при уроне
   if (enemy.hp < enemy.maxHp) {
     const barWidth = Math.min(80, Math.max(14, Math.round(enemy.r * 2)));
     const top = enemy.y - enemy.def.h - 3;
     ctx.fillStyle = "#0a0f1e";
     ctx.fillRect(enemy.x - barWidth / 2 - 1, top, barWidth + 2, 3);
-    ctx.fillStyle = "#ff4757";
+    ctx.fillStyle = "#ff2a6d"; // Cyber Pink
     ctx.fillRect(enemy.x - barWidth / 2, top + 1, (barWidth * enemy.hp) / enemy.maxHp, 1);
+  }
+  
+  // Маркеры типов врагов (ART.MD §8.2)
+  if (enemy.flash <= 0) {
+    if (enemy.type === "awakened") {
+      // Пурпурное гало вокруг (ART.MD §8.2 BOSS)
+      ctx.fillStyle = "rgba(123, 44, 191, 0.3)"; // Acid Purple 30%
+      ctx.beginPath();
+      ctx.arc(enemy.x, enemy.y - 8, enemy.r + 4, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (enemy.type === "sweeper") {
+      // Мигающий жёлтый огонёк снизу (ART.MD §8.2 DRONE)
+      if (Math.floor(enemy.animT * 4) % 2 === 0) {
+        ctx.fillStyle = "#f5e042"; // Toxic Yellow
+        ctx.fillRect(enemy.x - 1, enemy.y + 2, 2, 2);
+      }
+    }
   }
 }
 

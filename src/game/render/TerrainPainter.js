@@ -54,72 +54,121 @@ export function paintTerrain(map) {
     }
   }
 
+  // Атмосферные эффекты (ART.MD §9)
+  paintAtmosphericEffects(ctx, map, rng);
+
   return cv;
 }
 
-// Отрисовка дороги с разметкой
+// ---------- атмосферные эффекты (ART.MD §9) ----------
+function paintAtmosphericEffects(ctx, map, rng) {
+  // Туман/дымка (ART.MD §9.2) - полупрозрачный слой
+  ctx.fillStyle = "rgba(26, 29, 36, 0.15)"; // #1a1d24 15%
+  ctx.fillRect(0, 0, map.widthPx, map.heightPx);
+  
+  // Неоновые отражения на дорогах (ART.MD §4.4)
+  // Находим здания с неоновыми вывесками и рисуем отражения
+  for (let ty = 0; ty < map.size; ty++) {
+    for (let tx = 0; tx < map.size; tx++) {
+      if (map.get(tx, ty) !== T.HOUSE) continue;
+      
+      const px = tx * TILE;
+      const py = ty * TILE;
+      
+      // Проверяем, есть ли дорога рядом (для отражения)
+      const hasRoadBelow = ty < map.size - 1 && map.get(tx, ty + 1) === T.ROAD;
+      const hasRoadRight = tx < map.size - 1 && map.get(tx + 1, ty) === T.ROAD;
+      
+      if (hasRoadBelow || hasRoadRight) {
+        // Рисуем отражение неона (ART.MD §4.4)
+        const neonColors = ["#ff2a6d", "#05d9e8", "#f5e042"];
+        const neonColor = neonColors[Math.floor(rng() * neonColors.length)];
+        
+        // Вытянутое вертикальное пятно 4x16 px, прозрачность 20-30%
+        ctx.fillStyle = neonColor + "40"; // 25% alpha
+        if (hasRoadBelow) {
+          ctx.fillRect(px + 6, py + TILE, 4, 16);
+        }
+        if (hasRoadRight) {
+          ctx.fillRect(px + TILE, py + 6, 16, 4);
+        }
+      }
+    }
+  }
+}
+
+// Отрисовка дороги с разметкой (ART.MD стиль)
 function paintRoad(ctx, map, tx, ty, px, py, rng) {
-  // Базовый асфальт с шумом
-  ctx.fillStyle = "#2a2a2a";
+  // Базовый мокрый асфальт (ART.MD §4.1)
+  ctx.fillStyle = "#1a1d24"; // Тёмный мокрый асфальт
   ctx.fillRect(px, py, TILE, TILE);
   
-  // Добавляем шум/грязь на асфальт
-  for (let i = 0; i < 3; i++) {
+  // Добавляем шум для текстуры (5-10% пикселей)
+  for (let i = 0; i < 2; i++) {
     const noiseX = px + Math.floor(rng() * TILE);
     const noiseY = py + Math.floor(rng() * TILE);
-    ctx.fillStyle = `rgba(0, 0, 0, ${0.1 + rng() * 0.1})`;
+    ctx.fillStyle = "#2a2d34"; // Сухой асфальт
     ctx.fillRect(noiseX, noiseY, 1, 1);
+  }
+  
+  // Блики воды (2-3 белых пикселя с прозрачностью 30%)
+  for (let i = 0; i < 2; i++) {
+    if (rng() < 0.3) {
+      const glareX = px + Math.floor(rng() * TILE);
+      const glareY = py + Math.floor(rng() * TILE);
+      ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
+      ctx.fillRect(glareX, glareY, 1, 1);
+    }
   }
   
   // Определяем направление дороги
   const isHorizontal = isRoadHorizontal(map, tx, ty);
   const isVertical = isRoadVertical(map, tx, ty);
   
-  // Рисуем разметку (стёртую, желтоватую)
+  // Разметка (ART.MD §4.2) - жёлто-белая, слегка стёртая
   if (isHorizontal && !isVertical) {
-    // Горизонтальная дорога - осевая линия
-    ctx.fillStyle = "#d4b84a"; // Желтоватая, стёртая
+    // Горизонтальная дорога - прерывистая осевая линия
+    ctx.fillStyle = "#f5e042"; // Toxic Yellow
     const lineY = py + TILE / 2 - 1;
-    // Прерывистая линия: 8px линия, 4px пробел
-    for (let x = 0; x < TILE; x += 12) {
-      ctx.fillRect(px + x, lineY, 8, 2);
+    // Прерывистая линия: 4px линия / 4px пробел
+    for (let x = 0; x < TILE; x += 8) {
+      // Добавляем случайные пропажи для эффекта стёртости
+      if (rng() > 0.1) {
+        ctx.fillRect(px + x, lineY, 4, 2);
+      }
     }
   } else if (isVertical && !isHorizontal) {
-    // Вертикальная дорога - осевая линия
-    ctx.fillStyle = "#d4b84a";
+    // Вертикальная дорога - прерывистая осевая линия
+    ctx.fillStyle = "#f5e042";
     const lineX = px + TILE / 2 - 1;
-    // Прерывистая линия: 8px линия, 4px пробел
-    for (let y = 0; y < TILE; y += 12) {
-      ctx.fillRect(lineX, py + y, 2, 8);
+    for (let y = 0; y < TILE; y += 8) {
+      if (rng() > 0.1) {
+        ctx.fillRect(lineX, py + y, 2, 4);
+      }
     }
   }
-  // Перекрёсток - без осевой разметки
   
-  // Белые линии по краям дороги (если сосед не дорога)
-  ctx.fillStyle = "#e0e0e0"; // Не идеально белый
+  // Границы дороги (ART.MD §4.2) - белые, не идеально яркие
+  ctx.fillStyle = "#e0e0e0";
   
-  // Верхняя граница
   if (!isRoadAt(map, tx, ty - 1)) {
-    ctx.fillRect(px, py, TILE, 1);
+    ctx.fillRect(px, py, TILE, 2); // Сплошная линия 2px
   }
-  // Нижняя граница
   if (!isRoadAt(map, tx, ty + 1)) {
-    ctx.fillRect(px, py + TILE - 1, TILE, 1);
+    ctx.fillRect(px, py + TILE - 2, TILE, 2);
   }
-  // Левая граница
   if (!isRoadAt(map, tx - 1, ty)) {
-    ctx.fillRect(px, py, 1, TILE);
+    ctx.fillRect(px, py, 2, TILE);
   }
-  // Правая граница
   if (!isRoadAt(map, tx + 1, ty)) {
-    ctx.fillRect(px + TILE - 1, py, 1, TILE);
+    ctx.fillRect(px + TILE - 2, py, 2, TILE);
   }
   
-  // Пешеходный переход (зебра)
+  // Пешеходный переход (ART.MD §4.3) - зебра
   if (isCrosswalk(map, tx, ty)) {
     ctx.fillStyle = "#ffffff";
     if (isHorizontal) {
-      // Горизонтальная зебра
+      // Горизонтальная зебра (полосы 2x8 px)
       for (let i = 0; i < TILE; i += 4) {
         ctx.fillRect(px + i, py, 2, TILE);
       }
@@ -129,6 +178,23 @@ function paintRoad(ctx, map, tx, ty, px, py, rng) {
         ctx.fillRect(px, py + i, TILE, 2);
       }
     }
+  }
+  
+  // Люки на перекрёстках (ART.MD §4.3)
+  if (isIntersection(map, tx, ty) && rng() < 0.1) {
+    ctx.fillStyle = "#0a0a0a";
+    ctx.beginPath();
+    ctx.arc(px + TILE / 2, py + TILE / 2, 4, 0, Math.PI * 2);
+    ctx.fill();
+    // Решётка
+    ctx.strokeStyle = "#1a1d24";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(px + TILE / 2 - 3, py + TILE / 2);
+    ctx.lineTo(px + TILE / 2 + 3, py + TILE / 2);
+    ctx.moveTo(px + TILE / 2, py + TILE / 2 - 3);
+    ctx.lineTo(px + TILE / 2, py + TILE / 2 + 3);
+    ctx.stroke();
   }
 }
 
@@ -170,6 +236,17 @@ function isCrosswalk(map, tx, ty) {
   }
   
   return false;
+}
+
+// Проверка, является ли тайл перекрёстком
+function isIntersection(map, tx, ty) {
+  if (!isRoadAt(map, tx, ty)) return false;
+  
+  // Перекрёсток - дорога окружена дорогами со всех 4 сторон
+  return isRoadAt(map, tx - 1, ty) && 
+         isRoadAt(map, tx + 1, ty) && 
+         isRoadAt(map, tx, ty - 1) && 
+         isRoadAt(map, tx, ty + 1);
 }
 
 // Отрисовка деталей поверхности (масло и мусор)
@@ -227,57 +304,134 @@ function paintDebris(ctx, px, py, debrisType, rng) {
 
 
 
-// ---------- отрисовка здания (крыша + стены + тень) ----------
+// ---------- отрисовка здания (ART.MD §6 - 2.5D эффект) ----------
 function paintBuilding(ctx, map, tx, ty, px, py, rng) {
   const isHouse = (x, y) => {
     if (x < 0 || y < 0 || x >= map.size || y >= map.size) return false;
     return map.get(x, y) === T.HOUSE;
   };
   
-  // Определяем, является ли этот тайл частью стены здания
+  // Определяем края здания
   const isTopEdge = !isHouse(tx, ty - 1);
   const isBottomEdge = !isHouse(tx, ty + 1);
   const isLeftEdge = !isHouse(tx - 1, ty);
   const isRightEdge = !isHouse(tx + 1, ty);
   
-  // Рисуем тень здания (если это верхний-левый угол)
+  // Тень здания (ART.MD §6.1) - смещена на 4px вниз-вправо
   if (isTopEdge && isLeftEdge) {
-    ctx.fillStyle = "rgba(0, 0, 0, 0.3)";
-    ctx.fillRect(px + 2, py + 2, TILE, TILE);
+    ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
+    ctx.fillRect(px + 4, py + 4, TILE, TILE);
   }
   
-  // Рисуем крышу (плоский тайл с текстурой)
-  const roofColor = "#2a3444";
-  ctx.fillStyle = roofColor;
+  // Крыша (ART.MD §6.2) - бетонная плита
+  ctx.fillStyle = "#3d3a38"; // Бетон старый
   ctx.fillRect(px, py, TILE, TILE);
   
-  // Добавляем текстуру крыши (шум)
-  for (let i = 0; i < 2; i++) {
+  // Текстура крыши - шум и детали
+  for (let i = 0; i < 3; i++) {
     const noiseX = px + Math.floor(rng() * TILE);
     const noiseY = py + Math.floor(rng() * TILE);
-    ctx.fillStyle = `rgba(0, 0, 0, ${0.1 + rng() * 0.1})`;
+    ctx.fillStyle = `rgba(0, 0, 0, ${0.1 + rng() * 0.15})`;
     ctx.fillRect(noiseX, noiseY, 1, 1);
   }
   
-  // Рисуем стены (если это край здания)
-  const wallColor = "#1a2028";
-  const wallHeight = 3; // Высота стены в пикселях
+  // Кондиционеры на крыше (ART.MD §6.2) - 30% шанс
+  if (rng() < 0.3 && isTopEdge && isLeftEdge) {
+    ctx.fillStyle = "#4a4a4a";
+    const condX = px + 4 + Math.floor(rng() * 4);
+    const condY = py + 4 + Math.floor(rng() * 4);
+    ctx.fillRect(condX, condY, 4, 4);
+    // Решётка
+    ctx.fillStyle = "#2a2a2a";
+    ctx.fillRect(condX + 1, condY + 1, 2, 2);
+  }
+  
+  // Антенны (ART.MD §6.2) - 20% шанс
+  if (rng() < 0.2 && isTopEdge && isLeftEdge) {
+    ctx.fillStyle = "#5c3a2a"; // Ржавчина
+    const antennaX = px + 8 + Math.floor(rng() * 4);
+    const antennaY = py + 2;
+    ctx.fillRect(antennaX, antennaY, 1, 6);
+    // Мигающий красный огонь (ART.MD §6.2)
+    if (rng() < 0.5) {
+      ctx.fillStyle = "#ff0000";
+      ctx.fillRect(antennaX, antennaY, 1, 1);
+    }
+  }
+  
+  // Стены (ART.MD §6.3) - видны сбоку, высота 8-12px
+  const wallHeight = 10;
+  const wallColor = "#2a2725"; // На 2 тона темнее крыши
   
   ctx.fillStyle = wallColor;
   
-  // Нижняя стена (видна, если это нижний край)
+  // Нижняя стена
   if (isBottomEdge) {
     ctx.fillRect(px, py + TILE - wallHeight, TILE, wallHeight);
+    
+    // Окна на стене (ART.MD §6.3) - сетка 4x4, случайно
+    const windowColors = ["#f5e042", "#05d9e8", "#1a1d24"]; // Жёлтый/циан/тёмный
+    for (let wx = 2; wx < TILE - 4; wx += 6) {
+      for (let wy = 2; wy < wallHeight - 2; wy += 6) {
+        if (rng() < 0.7) { // 70% окон горят
+          ctx.fillStyle = windowColors[Math.floor(rng() * windowColors.length)];
+          ctx.fillRect(px + wx, py + TILE - wallHeight + wy, 4, 4);
+        }
+      }
+    }
   }
   
-  // Правая стена (видна, если это правый край)
+  // Правая стена
   if (isRightEdge) {
+    ctx.fillStyle = wallColor;
     ctx.fillRect(px + TILE - wallHeight, py, wallHeight, TILE);
+    
+    // Окна на правой стене
+    const windowColors = ["#f5e042", "#05d9e8", "#1a1d24"];
+    for (let wx = 2; wx < wallHeight - 2; wx += 6) {
+      for (let wy = 2; wy < TILE - 4; wy += 6) {
+        if (rng() < 0.7) {
+          ctx.fillStyle = windowColors[Math.floor(rng() * windowColors.length)];
+          ctx.fillRect(px + TILE - wallHeight + wx, py + wy, 4, 4);
+        }
+      }
+    }
   }
   
-  // Бортики крыши (по внешнему периметру)
+  // Неоновая вывеска (ART.MD §6.4) - 15% шанс
+  if (rng() < 0.15 && isBottomEdge && isLeftEdge) {
+    const neonColors = ["#ff2a6d", "#05d9e8", "#f5e042"]; // Pink/Cyan/Yellow
+    const neonColor = neonColors[Math.floor(rng() * neonColors.length)];
+    
+    // Вывеска 16x8 px
+    const signX = px + 2;
+    const signY = py + TILE - 14;
+    
+    // Свечение в 3 прохода (ART.MD §2.3)
+    // 1. Гало (50% прозрачности)
+    ctx.fillStyle = neonColor + "80"; // 50% alpha
+    ctx.fillRect(signX - 2, signY - 2, 20, 12);
+    
+    // 2. Основной цвет
+    ctx.fillStyle = neonColor;
+    ctx.fillRect(signX, signY, 16, 8);
+    
+    // 3. Ядро (белый/светлый)
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(signX + 2, signY + 2, 12, 4);
+    
+    // Псевдо-иероглифы (ART.MD §6.4)
+    ctx.fillStyle = neonColor;
+    for (let i = 0; i < 3; i++) {
+      const charX = signX + 3 + i * 4;
+      const charY = signY + 3;
+      ctx.fillRect(charX, charY, 2, 2);
+    }
+  }
+  
+  // Бортики крыши (ART.MD §6.1) - по внешнему периметру
+  ctx.fillStyle = "#1a1d24";
   const edgeSize = 2;
-  ctx.fillStyle = "#1a2028";
   
   if (isTopEdge) {
     ctx.fillRect(px, py, TILE, edgeSize);
@@ -290,31 +444,6 @@ function paintBuilding(ctx, map, tx, ty, px, py, rng) {
   }
   if (isRightEdge) {
     ctx.fillRect(px + TILE - edgeSize, py, edgeSize, TILE);
-  }
-  
-  // Антенны и детали рисуем только на "первом" тайле здания
-  const isFirstTile = isTopEdge && isLeftEdge;
-  
-  if (isFirstTile) {
-    // Антенны на крыше (30% шанс)
-    if (rng() < 0.3) {
-      ctx.fillStyle = "#4a5568";
-      const antennaX = px + 4 + Math.floor(rng() * (TILE - 8));
-      const antennaY = py + 4 + Math.floor(rng() * (TILE - 8));
-      
-      // Вертикальная антенна (линия)
-      ctx.fillRect(antennaX, antennaY, 1, 6);
-      // Горизонтальная перекладина
-      ctx.fillRect(antennaX - 2, antennaY + 2, 5, 1);
-    }
-    
-    // Дополнительные детали на крыше (20% шанс)
-    if (rng() < 0.2) {
-      ctx.fillStyle = "#3d4d6b";
-      const detailX = px + 3 + Math.floor(rng() * (TILE - 6));
-      const detailY = py + 3 + Math.floor(rng() * (TILE - 6));
-      ctx.fillRect(detailX, detailY, 3, 3);
-    }
   }
 }
 

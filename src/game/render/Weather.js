@@ -198,6 +198,9 @@ export class Weather {
   update(dt) {
     this.t += dt;
 
+    // Дождь (ART.MD §9.1) - 80% времени
+    this.updateRain(dt);
+
     // фазы цвета
     this.phaseT -= dt;
     if (this.phaseT <= 0) {
@@ -334,6 +337,9 @@ export class Weather {
       if (mix > 0.001) this.drawTiled(ctx, this.farDark[i], o.x, o.y, mix * base * ia);
     }
 
+    // Дождь (ART.MD §9.1)
+    this.drawRain(ctx);
+    
     // ближние снежинки: сгустки через медленные волны —
     // в одних местах снег густеет, в других редеет.
     // clump — произведение двух синус от позиции снежинки: значение в
@@ -388,5 +394,54 @@ export class Weather {
     for (let y = y0; y < this.h; y += TILE)
       for (let x = x0; x < this.w; x += TILE) ctx.drawImage(img, x, y);
     ctx.globalAlpha = 1;
+  }
+  
+  // ---------- дождь (ART.MD §9.1) ----------
+  updateRain(dt) {
+    // Инициализируем капли дождя при первом вызове
+    if (!this.rainDrops) {
+      this.rainDrops = [];
+      // 30-50 капель на экран (ART.MD §9.1)
+      for (let i = 0; i < 40; i++) {
+        this.rainDrops.push({
+          x: Math.random() * this.w,
+          y: Math.random() * this.h,
+          speed: 400 + Math.random() * 200,
+          length: 4, // 1x4 пикселя (ART.MD §9.1)
+        });
+      }
+    }
+    
+    // Обновляем позиции капель
+    for (const drop of this.rainDrops) {
+      // Угол 75° (ART.MD §9.1) - смещение вниз-влево
+      drop.y += drop.speed * dt;
+      drop.x -= drop.speed * dt * 0.27; // tan(15°) ≈ 0.27
+      
+      // Респаун при выходе за экран
+      if (drop.y > this.h) {
+        drop.y = -drop.length;
+        drop.x = Math.random() * this.w;
+      }
+      if (drop.x < 0) {
+        drop.x = this.w;
+      }
+    }
+  }
+  
+  drawRain(ctx) {
+    if (!this.rainDrops) return;
+    
+    // Белые линии 1x4 пикселя (ART.MD §9.1)
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.6)";
+    ctx.lineWidth = 1;
+    
+    for (const drop of this.rainDrops) {
+      ctx.beginPath();
+      ctx.moveTo(drop.x, drop.y);
+      // Угол 75° - линия наклонена
+      ctx.lineTo(drop.x - drop.length * 0.27, drop.y + drop.length);
+      ctx.stroke();
+    }
   }
 }
