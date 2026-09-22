@@ -148,29 +148,43 @@ export class CityGenerator {
     return cell.possibilities.length;
   }
   
-  // Найти ячейку с минимальной энтропией
+  // Найти ячейку с минимальной энтропией (оптимизированная версия)
   findLowestEntropyCell() {
     let minEntropy = Infinity;
-    let candidates = [];
+    let bestCell = null;
     
-    for (let y = 0; y < this.size; y++) {
-      for (let x = 0; x < this.size; x++) {
-        const entropy = this.entropy(x, y);
-        if (entropy === 0) continue;
+    // Случайное смещение для разнообразия
+    const startX = Math.floor(this.rng() * this.size);
+    const startY = Math.floor(this.rng() * this.size);
+    
+    for (let dy = 0; dy < this.size; dy++) {
+      for (let dx = 0; dx < this.size; dx++) {
+        const x = (startX + dx) % this.size;
+        const y = (startY + dy) % this.size;
         
-        if (entropy < minEntropy) {
+        const cell = this.cells[this.idx(x, y)];
+        if (cell.collapsed) continue;
+        
+        const entropy = cell.possibilities.length;
+        
+        // Нашли ячейку с энтропией 1 - сразу возвращаем
+        if (entropy === 1) {
+          return { x, y };
+        }
+        
+        if (entropy > 0 && entropy < minEntropy) {
           minEntropy = entropy;
-          candidates = [{ x, y }];
-        } else if (entropy === minEntropy) {
-          candidates.push({ x, y });
+          bestCell = { x, y };
+          
+          // Если нашли ячейку с энтропией 2, достаточно хорошо
+          if (entropy === 2) {
+            return bestCell;
+          }
         }
       }
     }
     
-    if (candidates.length === 0) return null;
-    
-    // Случайный выбор среди ячеек с минимальной энтропией
-    return candidates[Math.floor(this.rng() * candidates.length)];
+    return bestCell;
   }
   
   // Свернуть ячейку к одному состоянию
@@ -288,12 +302,14 @@ export class CityGenerator {
   
   // Основной цикл WFC
   generate() {
+    console.time('WFC generation');
+    
     // Этап 1: Генерация дорожной сети
     this.generateRoadNetwork();
     
     // Этап 2: WFC для заполнения остального пространства
     let iterations = 0;
-    const maxIterations = this.size * this.size * 5; // Уменьшили лимит
+    const maxIterations = this.size * this.size * 2; // Ещё больше уменьшили
     
     while (iterations < maxIterations) {
       // Найти ячейку с минимальной энтропией
@@ -307,10 +323,19 @@ export class CityGenerator {
       this.propagate(cell.x, cell.y);
       
       iterations++;
+      
+      // Прогресс каждые 1000 итераций
+      if (iterations % 1000 === 0) {
+        console.log(`WFC progress: ${iterations}/${maxIterations}`);
+      }
     }
+    
+    console.log(`WFC iterations: ${iterations}`);
     
     // Этап 3: Принудительно свернуть оставшиеся ячейки
     this.forceCollapseRemaining();
+    
+    console.timeEnd('WFC generation');
     
     return this.toTileMap();
   }
@@ -370,6 +395,153 @@ export class CityGenerator {
       }
     }
     
+    // Постобработка: создать цельные здания
+    this.postProcessBuildings(tiles);
+    
+    // Постобработка: обеспечить целостность дорог
+    this.postProcessRoads(tiles);
+    
     return tiles;
+  }
+  
+  // Постобработка зданий: найти связные компоненты и удалить маленькие
+  postProcessBuildings(tiles) {
+    const visited = new Uint8Array(this.size * this.size);
+    const MIN_BUILDING_SIZE = 25; // 5×5 = 25 тайлов
+    
+    for (let y = 0; y < this.size; y++) {
+      for (let x = 0; x < this.size; x++) {
+        const idx = this.idx(x, y);
+        if (tiles[idx] !== T.HOUSE || visited[idx]) continue;
+        
+        // Найти связный компонент
+        const component = [];
+        const queue = [{ x, y }];
+        visited[idx] = 1;
+        
+        while (queue.length > 0) {
+          const { x: cx, y: cy } = queue.shift();
+          component.push({ x: cx, y: cy });
+          
+          // Проверить 4 соседа
+          const neighbors = [
+            { x: cx - 1, y: cy },
+            { x: cx + 1, y: cy },
+            { x: cx, y: cy - 1 },
+            { x: cx, y: cy + 1 },
+          ];
+          
+          for (const n of neighbors) {
+            if (n.x < 0 || n.x >= this.size || n.y < 0 || n.y >= this.size) continue;
+            const nIdx = this.idx(n.x, n.y);
+            if (tiles[nIdx] === T.HOUSE && !visited[nIdx]) {
+              visited[nIdx] = 1;
+              queue.push(n);
+            }
+          }
+        }
+        
+        // Если компонент слишком маленький, превратить в дорогу
+        if (component.length < MIN_BUILDING_SIZE) {
+          for (const cell of component) {
+            tiles[this.idx(cell.x, cell.y)] = T.ROAD;
+          }
+        }
+      }
+    }
+  }
+  
+  // Постобработка дорог: обеспечить связность
+  postProcessRoads(tiles) {
+    // Найти все связные компоненты дорог
+    const visited = new Uint8Array(this.size * this.size);
+    const components = [];
+    
+    for (let y = 0; y < this.size; y++) {
+      for (let x = 0; x < this.size; x++) {
+        const idx = this.idx(x, y);
+        if (tiles[idx] !== T.ROAD || visited[idx]) continue;
+        
+        // Найти связный компонент дорог
+        const component = [];
+        const queue = [{ x, y }];
+        visited[idx] = 1;
+        
+        while (queue.length > 0) {
+          const { x: cx, y: cy } = queue.shift();
+          component.push({ x: cx, y: cy });
+          
+          const neighbors = [
+            { x: cx - 1, y: cy },
+            { x: cx + 1, y: cy },
+            { x: cx, y: cy - 1 },
+            { x: cx, y: cy + 1 },
+          ];
+          
+          for (const n of neighbors) {
+            if (n.x < 0 || n.x >= this.size || n.y < 0 || n.y >= this.size) continue;
+            const nIdx = this.idx(n.x, n.y);
+            if (tiles[nIdx] === T.ROAD && !visited[nIdx]) {
+              visited[nIdx] = 1;
+              queue.push(n);
+            }
+          }
+        }
+        
+        components.push(component);
+      }
+    }
+    
+    // Если есть несколько компонентов дорог, соединить их
+    if (components.length > 1) {
+      // Найти самый большой компонент
+      components.sort((a, b) => b.length - a.length);
+      const mainComponent = components[0];
+      
+      // Для каждого маленького компонента найти ближайшую точку в главном
+      for (let i = 1; i < components.length; i++) {
+        const smallComponent = components[i];
+        const smallCenter = smallComponent[Math.floor(smallComponent.length / 2)];
+        
+        // Найти ближайшую точку в главном компоненте
+        let nearestPoint = mainComponent[0];
+        let minDist = Infinity;
+        
+        for (const point of mainComponent) {
+          const dist = Math.abs(point.x - smallCenter.x) + Math.abs(point.y - smallCenter.y);
+          if (dist < minDist) {
+            minDist = dist;
+            nearestPoint = point;
+          }
+        }
+        
+        // Проложить дорогу от маленького компонента к главному
+        this.carveRoad(tiles, smallCenter.x, smallCenter.y, nearestPoint.x, nearestPoint.y);
+      }
+    }
+  }
+  
+  // Проложить дорогу между двумя точками
+  carveRoad(tiles, x1, y1, x2, y2) {
+    let x = x1;
+    let y = y1;
+    
+    // Сначала идём по X
+    while (x !== x2) {
+      const idx = this.idx(x, y);
+      if (tiles[idx] === T.HOUSE) {
+        tiles[idx] = T.ROAD;
+      }
+      x += x2 > x1 ? 1 : -1;
+    }
+    
+    // Затем по Y
+    while (y !== y2) {
+      const idx = this.idx(x, y);
+      if (tiles[idx] === T.HOUSE) {
+        tiles[idx] = T.ROAD;
+      }
+      y += y2 > y1 ? 1 : -1;
+    }
   }
 }

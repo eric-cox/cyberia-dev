@@ -15,13 +15,18 @@ import {
 
 // ---------- Главная функция генерации ----------
 export function generateWorld(seed) {
+  console.time('Total world generation');
   const rng = mulberry32(seed);
   
   // ========== ЭТАП 1: Генерация города с WFC ==========
+  console.time('CityGenerator');
   const cityGen = new CityGenerator(seed);
   const tiles = cityGen.generate();
+  console.timeEnd('CityGenerator');
   
+  console.time('WorldMap creation');
   const map = new WorldMap(seed, MAP_TILES, tiles);
+  console.timeEnd('WorldMap creation');
   
   // Инициализация массивов для загрязнения и поверхностей
   map.debris = new Uint8Array(MAP_TILES * MAP_TILES);
@@ -31,13 +36,19 @@ export function generateWorld(seed) {
   // TODO: Добавить тротуары, объединить здания, разместить ларьки
   
   // ========== ЭТАП 3: Генерация мусора и масла ==========
+  console.time('Debris and oil generation');
   generateDebrisAndOil(map, rng);
+  console.timeEnd('Debris and oil generation');
 
   // ========== ЭТАП 4: Финализация ==========
+  console.time('Finalization');
   clearStartingZone(map);
 
   // Строим индекс проходимых ячеек
   map.buildBands();
+  console.timeEnd('Finalization');
+  
+  console.timeEnd('Total world generation');
 
   return map;
 }
