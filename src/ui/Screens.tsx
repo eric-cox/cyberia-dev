@@ -286,7 +286,7 @@ export function MenuScreen({
     <Overlay tint="linear-gradient(180deg, rgba(5,8,15,0.82) 0%, rgba(10,17,32,0.7) 50%, rgba(5,8,15,0.9) 100%)">
       <div className="text-center mb-8">
         <div className="font-pixel text-[10px] tracking-[0.35em] text-[#4d6a8f] mb-4">
-          ПИКСЕЛЬНОЕ ВЫЖИВАНИЕ · ВЕЧНАЯ МЕРЗЛОТА
+          КИБЕРПАНК · СИБИРСКИЕ ПУСТОШИ
         </div>
         <h1
           className="title-drift font-pixel text-5xl md:text-6xl leading-none text-[#e8f2ff]"
@@ -295,10 +295,10 @@ export function MenuScreen({
               "4px 4px 0 #0a1120, 8px 8px 0 rgba(111,214,255,0.28), -3px -2px 0 rgba(255,71,87,0.35)",
           }}
         >
-          МЕРЗЛОТА
+          CYBERIA
         </h1>
         <p className="font-term text-[13px] text-[#9fb6cc] mt-5 max-w-md mx-auto leading-relaxed">
-          Пурга съедает тепло, а когда тепло кончается — мороз выедает жизнь.
+          Поиск спасения в сибирских пустошах. Пурга съедает тепло, а когда тепло кончается — мороз выедает жизнь.
           Чем лучше одежда, тем медленнее тает и то и другое. Собирай
           артефакты по карте: всё найденное остаётся в схроне навсегда.
         </p>
