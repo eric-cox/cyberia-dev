@@ -32,12 +32,12 @@ export function paintTerrain(map) {
       
       // Рисуем дороги с разметкой
       if (tileType === T.ROAD) {
-        paintRoad(ctx, map, tx, ty, px, py);
+        paintRoad(ctx, map, tx, ty, px, py, rng);
       }
       
       // Рисуем здания
       if (tileType === T.HOUSE) {
-        paintBuildingRoof(ctx, map, tx, ty, px, py, rng);
+        paintBuilding(ctx, map, tx, ty, px, py, rng);
       }
       
       // Рисуем масло и мусор на дорогах
@@ -58,19 +58,27 @@ export function paintTerrain(map) {
 }
 
 // Отрисовка дороги с разметкой
-function paintRoad(ctx, map, tx, ty, px, py) {
-  // Базовый асфальт
+function paintRoad(ctx, map, tx, ty, px, py, rng) {
+  // Базовый асфальт с шумом
   ctx.fillStyle = "#2a2a2a";
   ctx.fillRect(px, py, TILE, TILE);
+  
+  // Добавляем шум/грязь на асфальт
+  for (let i = 0; i < 3; i++) {
+    const noiseX = px + Math.floor(rng() * TILE);
+    const noiseY = py + Math.floor(rng() * TILE);
+    ctx.fillStyle = `rgba(0, 0, 0, ${0.1 + rng() * 0.1})`;
+    ctx.fillRect(noiseX, noiseY, 1, 1);
+  }
   
   // Определяем направление дороги
   const isHorizontal = isRoadHorizontal(map, tx, ty);
   const isVertical = isRoadVertical(map, tx, ty);
   
-  // Рисуем разметку
+  // Рисуем разметку (стёртую, желтоватую)
   if (isHorizontal && !isVertical) {
     // Горизонтальная дорога - осевая линия
-    ctx.fillStyle = "#ffcc00";
+    ctx.fillStyle = "#d4b84a"; // Желтоватая, стёртая
     const lineY = py + TILE / 2 - 1;
     // Прерывистая линия: 8px линия, 4px пробел
     for (let x = 0; x < TILE; x += 12) {
@@ -78,18 +86,17 @@ function paintRoad(ctx, map, tx, ty, px, py) {
     }
   } else if (isVertical && !isHorizontal) {
     // Вертикальная дорога - осевая линия
-    ctx.fillStyle = "#ffcc00";
+    ctx.fillStyle = "#d4b84a";
     const lineX = px + TILE / 2 - 1;
     // Прерывистая линия: 8px линия, 4px пробел
     for (let y = 0; y < TILE; y += 12) {
       ctx.fillRect(lineX, py + y, 2, 8);
     }
-  } else if (isHorizontal && isVertical) {
-    // Перекрёсток - без разметки
   }
+  // Перекрёсток - без осевой разметки
   
   // Белые линии по краям дороги (если сосед не дорога)
-  ctx.fillStyle = "#ffffff";
+  ctx.fillStyle = "#e0e0e0"; // Не идеально белый
   
   // Верхняя граница
   if (!isRoadAt(map, tx, ty - 1)) {
@@ -107,6 +114,22 @@ function paintRoad(ctx, map, tx, ty, px, py) {
   if (!isRoadAt(map, tx + 1, ty)) {
     ctx.fillRect(px + TILE - 1, py, 1, TILE);
   }
+  
+  // Пешеходный переход (зебра)
+  if (isCrosswalk(map, tx, ty)) {
+    ctx.fillStyle = "#ffffff";
+    if (isHorizontal) {
+      // Горизонтальная зебра
+      for (let i = 0; i < TILE; i += 4) {
+        ctx.fillRect(px + i, py, 2, TILE);
+      }
+    } else if (isVertical) {
+      // Вертикальная зебра
+      for (let i = 0; i < TILE; i += 4) {
+        ctx.fillRect(px, py + i, TILE, 2);
+      }
+    }
+  }
 }
 
 // Проверка, является ли тайл дорогой
@@ -123,6 +146,30 @@ function isRoadHorizontal(map, tx, ty) {
 // Проверка, идёт ли дорога вертикально
 function isRoadVertical(map, tx, ty) {
   return isRoadAt(map, tx, ty - 1) || isRoadAt(map, tx, ty + 1);
+}
+
+// Проверка, является ли тайл пешеходным переходом
+function isCrosswalk(map, tx, ty) {
+  // Пешеходный переход - это дорога, окружённая тротуарами с двух сторон
+  if (!isRoadAt(map, tx, ty)) return false;
+  
+  const isHorizontal = isRoadHorizontal(map, tx, ty);
+  const isVertical = isRoadVertical(map, tx, ty);
+  
+  // Проверяем, есть ли тротуары поперёк дороги
+  if (isHorizontal && !isVertical) {
+    // Для горизонтальной дороги проверяем тротуары сверху и снизу
+    const hasSidewalkTop = !isRoadAt(map, tx, ty - 1);
+    const hasSidewalkBottom = !isRoadAt(map, tx, ty + 1);
+    return hasSidewalkTop && hasSidewalkBottom;
+  } else if (isVertical && !isHorizontal) {
+    // Для вертикальной дороги проверяем тротуары слева и справа
+    const hasSidewalkLeft = !isRoadAt(map, tx - 1, ty);
+    const hasSidewalkRight = !isRoadAt(map, tx + 1, ty);
+    return hasSidewalkLeft && hasSidewalkRight;
+  }
+  
+  return false;
 }
 
 // Отрисовка деталей поверхности (масло и мусор)
@@ -180,52 +227,78 @@ function paintDebris(ctx, px, py, debrisType, rng) {
 
 
 
-// ---------- отрисовка стены здания ----------
-function paintBuildingRoof(ctx, map, tx, ty, px, py, rng) {
-  // Крыша здания (вид сверху)
-  const roofColor = "#2a3444";
-  const roofEdge = "#1a2028";
-  const antennaColor = "#4a5568";
-  
-  // Основание крыши
-  ctx.fillStyle = roofColor;
-  ctx.fillRect(px, py, TILE, TILE);
-  
-  // Бортики только по внешнему периметру здания
-  // Проверяем соседей: если сосед не HOUSE, рисуем бортик
-  ctx.fillStyle = roofEdge;
-  const edgeSize = 2;
-  
+// ---------- отрисовка здания (крыша + стены + тень) ----------
+function paintBuilding(ctx, map, tx, ty, px, py, rng) {
   const isHouse = (x, y) => {
     if (x < 0 || y < 0 || x >= map.size || y >= map.size) return false;
     return map.get(x, y) === T.HOUSE;
   };
   
-  // Верхний бортик (если сосед сверху не дом)
-  if (!isHouse(tx, ty - 1)) {
+  // Определяем, является ли этот тайл частью стены здания
+  const isTopEdge = !isHouse(tx, ty - 1);
+  const isBottomEdge = !isHouse(tx, ty + 1);
+  const isLeftEdge = !isHouse(tx - 1, ty);
+  const isRightEdge = !isHouse(tx + 1, ty);
+  
+  // Рисуем тень здания (если это верхний-левый угол)
+  if (isTopEdge && isLeftEdge) {
+    ctx.fillStyle = "rgba(0, 0, 0, 0.3)";
+    ctx.fillRect(px + 2, py + 2, TILE, TILE);
+  }
+  
+  // Рисуем крышу (плоский тайл с текстурой)
+  const roofColor = "#2a3444";
+  ctx.fillStyle = roofColor;
+  ctx.fillRect(px, py, TILE, TILE);
+  
+  // Добавляем текстуру крыши (шум)
+  for (let i = 0; i < 2; i++) {
+    const noiseX = px + Math.floor(rng() * TILE);
+    const noiseY = py + Math.floor(rng() * TILE);
+    ctx.fillStyle = `rgba(0, 0, 0, ${0.1 + rng() * 0.1})`;
+    ctx.fillRect(noiseX, noiseY, 1, 1);
+  }
+  
+  // Рисуем стены (если это край здания)
+  const wallColor = "#1a2028";
+  const wallHeight = 3; // Высота стены в пикселях
+  
+  ctx.fillStyle = wallColor;
+  
+  // Нижняя стена (видна, если это нижний край)
+  if (isBottomEdge) {
+    ctx.fillRect(px, py + TILE - wallHeight, TILE, wallHeight);
+  }
+  
+  // Правая стена (видна, если это правый край)
+  if (isRightEdge) {
+    ctx.fillRect(px + TILE - wallHeight, py, wallHeight, TILE);
+  }
+  
+  // Бортики крыши (по внешнему периметру)
+  const edgeSize = 2;
+  ctx.fillStyle = "#1a2028";
+  
+  if (isTopEdge) {
     ctx.fillRect(px, py, TILE, edgeSize);
   }
-  // Нижний бортик (если сосед снизу не дом)
-  if (!isHouse(tx, ty + 1)) {
+  if (isBottomEdge) {
     ctx.fillRect(px, py + TILE - edgeSize, TILE, edgeSize);
   }
-  // Левый бортик (если сосед слева не дом)
-  if (!isHouse(tx - 1, ty)) {
+  if (isLeftEdge) {
     ctx.fillRect(px, py, edgeSize, TILE);
   }
-  // Правый бортик (если сосед справа не дом)
-  if (!isHouse(tx + 1, ty)) {
+  if (isRightEdge) {
     ctx.fillRect(px + TILE - edgeSize, py, edgeSize, TILE);
   }
   
   // Антенны и детали рисуем только на "первом" тайле здания
-  // (верхний-левый тайл: если слева и сверху не дом)
-  const isFirstTile = !isHouse(tx - 1, ty) && !isHouse(tx, ty - 1);
+  const isFirstTile = isTopEdge && isLeftEdge;
   
   if (isFirstTile) {
     // Антенны на крыше (30% шанс)
     if (rng() < 0.3) {
-      ctx.fillStyle = antennaColor;
+      ctx.fillStyle = "#4a5568";
       const antennaX = px + 4 + Math.floor(rng() * (TILE - 8));
       const antennaY = py + 4 + Math.floor(rng() * (TILE - 8));
       
