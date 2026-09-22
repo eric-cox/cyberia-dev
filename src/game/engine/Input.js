@@ -86,6 +86,7 @@ export class Input {
       // KeyR: в бою — перезарядка дробовика, на экране смерти — рестарт
       reload: this.wasPressed("KeyR"),
       restart: this.wasPressed("KeyR"),
+      suicide: this.wasPressed("Delete"),
       enter: this.wasPressed("Enter", "Space"),
       mouseX: this.mouse.x,
       mouseY: this.mouse.y,

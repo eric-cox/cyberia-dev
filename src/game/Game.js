@@ -54,6 +54,10 @@ export default class Game {
     this._onResize = () => this.renderer.resize();
     window.addEventListener("resize", this._onResize);
 
+    // Обработчик кнопки самоубийства из HUD
+    this._onSuicide = () => this.bus.emit("suicide");
+    window.addEventListener("game:suicide", this._onSuicide);
+
     // мир для фона главного меню
     this.sim.generate((Math.random() * 1e9) | 0);
 
@@ -63,6 +67,7 @@ export default class Game {
   destroy() {
     cancelAnimationFrame(this._raf);
     window.removeEventListener("resize", this._onResize);
+    window.removeEventListener("game:suicide", this._onSuicide);
     this.input.destroy();
   }
 
@@ -153,6 +158,9 @@ export default class Game {
       this.hooks.onState && this.hooks.onState("dead");
       this.pushSnapshot();
     });
+    b.on("suicide", () => {
+      this.sim.die("suicide");
+    });
     b.on("victory", ({ time, kills }) => {
       this.sfx.victory();
       this.store.recordRun({ time, kills, victory: true });
@@ -235,6 +243,10 @@ export default class Game {
     }
     if (cmd.toggleInventory)
       this.hooks.onToggleInventory && this.hooks.onToggleInventory();
+
+    if (cmd.suicide) {
+      this.bus.emit("suicide");
+    }
 
     // прицел ЛКМ: экранные координаты курсора → мировые → угол от игрока
     if (cmd.attackAim && player) {

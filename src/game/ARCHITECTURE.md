@@ -66,6 +66,7 @@
 | `heartbeat` | — | Game (звук) |
 | `weather` / `blizzard` | `{ dark }` / `{ active }` | Game (звук, тост) |
 | `death` | `{ cause, time, kills }` | Game (звук, статистика, экран смерти) |
+| `suicide` | — | Game (вызывает `sim.die("suicide")`) |
 | `victory` | `{ time, kills }` | Game (звук, статистика, экран победы) |
 
 ## Как расширять

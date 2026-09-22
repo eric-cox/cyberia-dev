@@ -543,6 +543,15 @@ function HUD({
         <div><span className="key-cap mr-1.5">WASD</span>движение</div>
         <div><span className="key-cap mr-1.5">SPACE</span><span className="key-cap mr-1.5">ЛКМ</span>атака</div>
         <div><span className="key-cap mr-1.5">TAB</span>схрон · <span className="key-cap ml-1.5 mr-1.5">M</span>звук</div>
+        <div className="mt-2 pt-2 border-t border-[#1d2c44]">
+          <button
+            onClick={() => window.dispatchEvent(new CustomEvent("game:suicide"))}
+            className="font-pixel text-[8px] text-[#ff4757] hover:text-[#ff6b7a] transition-colors"
+            title="Самоубийство (Delete)"
+          >
+            ☠ САМОУБИЙСТВО
+          </button>
+        </div>
       </div>
 
       {/* тосты находок */}
