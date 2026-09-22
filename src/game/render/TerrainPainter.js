@@ -15,7 +15,6 @@ import {
   OIL_VISUAL
 } from "../world/streetTypes.js";
 import { mulberry32 } from "../core/Rng.js";
-import { renderStreets } from "./StreetRenderer.js";
 
 export function paintTerrain(map) {
   const cv = document.createElement("canvas");
@@ -24,11 +23,6 @@ export function paintTerrain(map) {
   const ctx = cv.getContext("2d");
   const rng = mulberry32((map.seed ^ 0x5eedbeef) >>> 0);
 
-  // Рендеринг улиц (если есть уличная сеть)
-  if (map.streetNetwork) {
-    renderStreets(ctx, map.streetNetwork);
-  }
-
   // Единый проход по всем тайлам
   for (let ty = 0; ty < map.size; ty++) {
     for (let tx = 0; tx < map.size; tx++) {
@@ -36,8 +30,10 @@ export function paintTerrain(map) {
       const py = ty * TILE;
       const tileType = map.get(tx, ty);
       
-      // Пропускаем улицы (уже отрисованы StreetRenderer)
-      if (isStreetTile(map, tx, ty)) continue;
+      // Рисуем дороги
+      if (tileType === T.ROAD) {
+        paintRoad(ctx, px, py);
+      }
       
       // Рисуем здания
       if (tileType === T.HOUSE) {
@@ -61,12 +57,10 @@ export function paintTerrain(map) {
   return cv;
 }
 
-// Проверка, является ли тайл улицей
-function isStreetTile(map, tx, ty) {
-  if (!map.streetNetwork) return false;
-  const streetIdx = ty * map.size + tx;
-  const streetType = map.streetNetwork.streetType[streetIdx];
-  return streetType >= 1 && streetType <= 3; // ROADWAY, SIDEWALK, PLAZA
+// Отрисовка дороги
+function paintRoad(ctx, px, py) {
+  ctx.fillStyle = "#2a2a2a";
+  ctx.fillRect(px, py, TILE, TILE);
 }
 
 // Отрисовка деталей поверхности (масло и мусор)
