@@ -30,9 +30,9 @@ export function paintTerrain(map) {
       const py = ty * TILE;
       const tileType = map.get(tx, ty);
       
-      // Рисуем дороги
+      // Рисуем дороги с разметкой
       if (tileType === T.ROAD) {
-        paintRoad(ctx, px, py);
+        paintRoad(ctx, map, tx, ty, px, py);
       }
       
       // Рисуем здания
@@ -57,10 +57,72 @@ export function paintTerrain(map) {
   return cv;
 }
 
-// Отрисовка дороги
-function paintRoad(ctx, px, py) {
+// Отрисовка дороги с разметкой
+function paintRoad(ctx, map, tx, ty, px, py) {
+  // Базовый асфальт
   ctx.fillStyle = "#2a2a2a";
   ctx.fillRect(px, py, TILE, TILE);
+  
+  // Определяем направление дороги
+  const isHorizontal = isRoadHorizontal(map, tx, ty);
+  const isVertical = isRoadVertical(map, tx, ty);
+  
+  // Рисуем разметку
+  if (isHorizontal && !isVertical) {
+    // Горизонтальная дорога - осевая линия
+    ctx.fillStyle = "#ffcc00";
+    const lineY = py + TILE / 2 - 1;
+    // Прерывистая линия: 8px линия, 4px пробел
+    for (let x = 0; x < TILE; x += 12) {
+      ctx.fillRect(px + x, lineY, 8, 2);
+    }
+  } else if (isVertical && !isHorizontal) {
+    // Вертикальная дорога - осевая линия
+    ctx.fillStyle = "#ffcc00";
+    const lineX = px + TILE / 2 - 1;
+    // Прерывистая линия: 8px линия, 4px пробел
+    for (let y = 0; y < TILE; y += 12) {
+      ctx.fillRect(lineX, py + y, 2, 8);
+    }
+  } else if (isHorizontal && isVertical) {
+    // Перекрёсток - без разметки
+  }
+  
+  // Белые линии по краям дороги (если сосед не дорога)
+  ctx.fillStyle = "#ffffff";
+  
+  // Верхняя граница
+  if (!isRoadAt(map, tx, ty - 1)) {
+    ctx.fillRect(px, py, TILE, 1);
+  }
+  // Нижняя граница
+  if (!isRoadAt(map, tx, ty + 1)) {
+    ctx.fillRect(px, py + TILE - 1, TILE, 1);
+  }
+  // Левая граница
+  if (!isRoadAt(map, tx - 1, ty)) {
+    ctx.fillRect(px, py, 1, TILE);
+  }
+  // Правая граница
+  if (!isRoadAt(map, tx + 1, ty)) {
+    ctx.fillRect(px + TILE - 1, py, 1, TILE);
+  }
+}
+
+// Проверка, является ли тайл дорогой
+function isRoadAt(map, tx, ty) {
+  if (tx < 0 || tx >= map.size || ty < 0 || ty >= map.size) return false;
+  return map.get(tx, ty) === T.ROAD;
+}
+
+// Проверка, идёт ли дорога горизонтально
+function isRoadHorizontal(map, tx, ty) {
+  return isRoadAt(map, tx - 1, ty) || isRoadAt(map, tx + 1, ty);
+}
+
+// Проверка, идёт ли дорога вертикально
+function isRoadVertical(map, tx, ty) {
+  return isRoadAt(map, tx, ty - 1) || isRoadAt(map, tx, ty + 1);
 }
 
 // Отрисовка деталей поверхности (масло и мусор)

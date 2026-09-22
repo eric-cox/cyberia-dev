@@ -19,14 +19,14 @@ export const TILE_TYPES = {
 // Соседи для каждого типа тайла
 // Формат: { direction: [allowed_neighbors] }
 // direction: 0=top, 1=right, 2=bottom, 3=left
-// Упрощённые правила для избежания противоречий
+// Упрощённые правила - все могут соседствовать со всем
 const TILE_RULES = {
   [TILE_TYPES.WALL]: {
     neighbors: {
-      0: [TILE_TYPES.WALL, TILE_TYPES.SIDEWALK, TILE_TYPES.ROAD],
-      1: [TILE_TYPES.WALL, TILE_TYPES.SIDEWALK, TILE_TYPES.ROAD],
-      2: [TILE_TYPES.WALL, TILE_TYPES.SIDEWALK, TILE_TYPES.ROAD],
-      3: [TILE_TYPES.WALL, TILE_TYPES.SIDEWALK, TILE_TYPES.ROAD],
+      0: [TILE_TYPES.WALL, TILE_TYPES.SIDEWALK, TILE_TYPES.ROAD, TILE_TYPES.HOUSE, TILE_TYPES.STALL],
+      1: [TILE_TYPES.WALL, TILE_TYPES.SIDEWALK, TILE_TYPES.ROAD, TILE_TYPES.HOUSE, TILE_TYPES.STALL],
+      2: [TILE_TYPES.WALL, TILE_TYPES.SIDEWALK, TILE_TYPES.ROAD, TILE_TYPES.HOUSE, TILE_TYPES.STALL],
+      3: [TILE_TYPES.WALL, TILE_TYPES.SIDEWALK, TILE_TYPES.ROAD, TILE_TYPES.HOUSE, TILE_TYPES.STALL],
     }
   },
   [TILE_TYPES.ROAD]: {
@@ -47,18 +47,18 @@ const TILE_RULES = {
   },
   [TILE_TYPES.HOUSE]: {
     neighbors: {
-      0: [TILE_TYPES.HOUSE, TILE_TYPES.SIDEWALK, TILE_TYPES.ROAD],
-      1: [TILE_TYPES.HOUSE, TILE_TYPES.SIDEWALK, TILE_TYPES.ROAD],
-      2: [TILE_TYPES.HOUSE, TILE_TYPES.SIDEWALK, TILE_TYPES.ROAD],
-      3: [TILE_TYPES.HOUSE, TILE_TYPES.SIDEWALK, TILE_TYPES.ROAD],
+      0: [TILE_TYPES.HOUSE, TILE_TYPES.SIDEWALK, TILE_TYPES.ROAD, TILE_TYPES.WALL, TILE_TYPES.STALL],
+      1: [TILE_TYPES.HOUSE, TILE_TYPES.SIDEWALK, TILE_TYPES.ROAD, TILE_TYPES.WALL, TILE_TYPES.STALL],
+      2: [TILE_TYPES.HOUSE, TILE_TYPES.SIDEWALK, TILE_TYPES.ROAD, TILE_TYPES.WALL, TILE_TYPES.STALL],
+      3: [TILE_TYPES.HOUSE, TILE_TYPES.SIDEWALK, TILE_TYPES.ROAD, TILE_TYPES.WALL, TILE_TYPES.STALL],
     }
   },
   [TILE_TYPES.STALL]: {
     neighbors: {
-      0: [TILE_TYPES.STALL, TILE_TYPES.SIDEWALK, TILE_TYPES.ROAD],
-      1: [TILE_TYPES.STALL, TILE_TYPES.SIDEWALK, TILE_TYPES.ROAD],
-      2: [TILE_TYPES.STALL, TILE_TYPES.SIDEWALK, TILE_TYPES.ROAD],
-      3: [TILE_TYPES.STALL, TILE_TYPES.SIDEWALK, TILE_TYPES.ROAD],
+      0: [TILE_TYPES.STALL, TILE_TYPES.SIDEWALK, TILE_TYPES.ROAD, TILE_TYPES.WALL, TILE_TYPES.HOUSE],
+      1: [TILE_TYPES.STALL, TILE_TYPES.SIDEWALK, TILE_TYPES.ROAD, TILE_TYPES.WALL, TILE_TYPES.HOUSE],
+      2: [TILE_TYPES.STALL, TILE_TYPES.SIDEWALK, TILE_TYPES.ROAD, TILE_TYPES.WALL, TILE_TYPES.HOUSE],
+      3: [TILE_TYPES.STALL, TILE_TYPES.SIDEWALK, TILE_TYPES.ROAD, TILE_TYPES.WALL, TILE_TYPES.HOUSE],
     }
   },
 };
@@ -266,11 +266,10 @@ export class CityGenerator {
     while (y < this.size - 3) {
       const width = ROAD_WIDTH_MIN + Math.floor(this.rng() * (ROAD_WIDTH_MAX - ROAD_WIDTH_MIN + 1));
       
-      // Размещаем дорогу
+      // Размещаем дорогу БЕЗ propagate (чтобы не разрушить)
       for (let dy = 0; dy < width; dy++) {
         for (let x = 1; x < this.size - 1; x++) { // Не трогаем границы
           this.collapseCellTo(x, y + dy, TILE_TYPES.ROAD);
-          this.propagate(x, y + dy); // Распространяем ограничения
         }
       }
       
@@ -285,11 +284,10 @@ export class CityGenerator {
     while (x < this.size - 3) {
       const width = ROAD_WIDTH_MIN + Math.floor(this.rng() * (ROAD_WIDTH_MAX - ROAD_WIDTH_MIN + 1));
       
-      // Размещаем дорогу
+      // Размещаем дорогу БЕЗ propagate
       for (let dx = 0; dx < width; dx++) {
         for (let y = 1; y < this.size - 1; y++) {
           this.collapseCellTo(x + dx, y, TILE_TYPES.ROAD);
-          this.propagate(x + dx, y); // Распространяем ограничения
         }
       }
       
