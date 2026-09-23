@@ -62,7 +62,6 @@ export default class Game {
     try {
       this.sim.generate((Math.random() * 1e9) | 0);
     } catch (error) {
-      console.error('[Game] Error generating world:', error);
       // Если генерация не удалась, создаём простую тестовую карту
       const tiles = new Uint8Array(128 * 128);
       for (let i = 0; i < tiles.length; i++) {

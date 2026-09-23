@@ -183,14 +183,6 @@ export class Renderer {
     ctx.fillStyle = "#05080f";
     ctx.fillRect(0, 0, this.viewW, this.viewH);
 
-    // Отладочная информация
-    if (!sim.map) {
-      ctx.fillStyle = "#ff0000";
-      ctx.font = "20px Arial";
-      ctx.fillText("ERROR: sim.map is null", 10, 30);
-      return;
-    }
-
     if (sim.map && sim.map.tiles) {
       ctx.save();
       ctx.translate(

@@ -71,7 +71,6 @@ export class Simulation {
     try {
       this.map = generateWorld(seed);
     } catch (error) {
-      console.error('[Simulation.generate] Error:', error);
       // Если генерация не удалась, создаём простую тестовую карту
       const MAP_TILES = 128;
       const tiles = new Uint8Array(MAP_TILES * MAP_TILES);
@@ -102,7 +101,6 @@ export class Simulation {
     try {
       this.map = generateWorld(seed);
     } catch (error) {
-      console.error('[Simulation.startRun] Error:', error);
       // Если генерация не удалась, создаём простую тестовую карту
       const MAP_TILES = 128;
       const tiles = new Uint8Array(MAP_TILES * MAP_TILES);

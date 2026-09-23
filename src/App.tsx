@@ -23,46 +23,32 @@ export default function App() {
   const [hurtKey, setHurtKey] = useState(0);
 
   useEffect(() => {
-    console.log('[App] useEffect triggered, canvas:', canvasRef.current);
-    if (!canvasRef.current) {
-      console.error('[App] Canvas is null!');
-      return;
-    }
-    console.log('[App] Creating Game...');
-    try {
-      const game = new Game(canvasRef.current, {
-        onSnapshot: (s: Snapshot) => {
-          console.log('[App] onSnapshot called');
-          setSnap(s);
-        },
-        onState: (st: string) => {
-          console.log('[App] onState called:', st);
-          setScreen(st as ScreenId);
-          if (st === "playing" || st === "dead") {
-            setInvOpen(false);
-            setLoadoutOpen(false);
-          }
-        },
-        onToast: (t: { kind: string; text: string; tier?: number }) => {
-          const id = Date.now() + Math.random();
-          setToasts((ts) => [...ts.slice(-2), { ...t, id }]);
-          window.setTimeout(
-            () => setToasts((ts) => ts.filter((x) => x.id !== id)),
-            2600
-          );
-        },
-        onToggleInventory: () => setInvOpen((v) => !v),
-        onHurt: () => setHurtKey((k) => k + 1),
-      });
-      console.log('[App] Game created successfully');
-      gameRef.current = game;
-      return () => {
-        game.destroy();
-        gameRef.current = null;
-      };
-    } catch (error) {
-      console.error('[App] Error creating Game:', error);
-    }
+    if (!canvasRef.current) return;
+    const game = new Game(canvasRef.current, {
+      onSnapshot: (s: Snapshot) => setSnap(s),
+      onState: (st: string) => {
+        setScreen(st as ScreenId);
+        if (st === "playing" || st === "dead") {
+          setInvOpen(false);
+          setLoadoutOpen(false);
+        }
+      },
+      onToast: (t: { kind: string; text: string; tier?: number }) => {
+        const id = Date.now() + Math.random();
+        setToasts((ts) => [...ts.slice(-2), { ...t, id }]);
+        window.setTimeout(
+          () => setToasts((ts) => ts.filter((x) => x.id !== id)),
+          2600
+        );
+      },
+      onToggleInventory: () => setInvOpen((v) => !v),
+      onHurt: () => setHurtKey((k) => k + 1),
+    });
+    gameRef.current = game;
+    return () => {
+      game.destroy();
+      gameRef.current = null;
+    };
   }, []);
 
   // ESC закрывает схрон и снаряжение (движок перехватывает Tab/I сам)
