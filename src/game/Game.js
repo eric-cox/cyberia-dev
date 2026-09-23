@@ -59,7 +59,29 @@ export default class Game {
     window.addEventListener("game:suicide", this._onSuicide);
 
     // мир для фона главного меню
-    this.sim.generate((Math.random() * 1e9) | 0);
+    try {
+      this.sim.generate((Math.random() * 1e9) | 0);
+    } catch (error) {
+      console.error('[Game] Error generating world:', error);
+      // Если генерация не удалась, создаём простую тестовую карту
+      const tiles = new Uint8Array(128 * 128);
+      for (let i = 0; i < tiles.length; i++) {
+        tiles[i] = 0; // T.ROAD
+      }
+      this.sim.map = {
+        seed: 0,
+        size: 128,
+        tiles: tiles,
+        widthPx: 128 * 16,
+        heightPx: 128 * 16,
+        center: { x: 64 * 16, y: 64 * 16 },
+        get: (x, y) => tiles[y * 128 + x],
+        cellAt: () => ({ speed: 1, inertia: 0 }),
+      };
+    }
+
+    // Отправляем начальный снапшот для меню
+    this.pushSnapshot();
 
     this._raf = requestAnimationFrame(this.frame);
   }
@@ -207,12 +229,14 @@ export default class Game {
 
     if (sim.state === "menu") {
       this.menuT += dt;
-      const center = sim.map.center;
-      // камера медленно плывёт по кругу — живой фон меню
-      this.camera.set(
-        center.x + Math.cos(this.menuT * 0.11) * 110,
-        center.y + Math.sin(this.menuT * 0.09) * 110
-      );
+      if (sim.map && sim.map.center) {
+        const center = sim.map.center;
+        // камера медленно плывёт по кругу — живой фон меню
+        this.camera.set(
+          center.x + Math.cos(this.menuT * 0.11) * 110,
+          center.y + Math.sin(this.menuT * 0.09) * 110
+        );
+      }
       if (cmd.enter) this.startRun();
       return;
     }
@@ -319,15 +343,15 @@ export default class Game {
     this.hooks.onSnapshot &&
       this.hooks.onSnapshot({
         state: sim.state,
-        heat: Math.max(0, Math.ceil(sim.heat)),
+        heat: Math.max(0, Math.ceil(sim.heat || 0)),
         maxHeat: this.diff.player.maxHeat,
-        hp: Math.max(0, Math.ceil(sim.hp)),
-        maxHp: sim.xp.maxHp,
-        hpRate: Math.round(sim.hpRate * 10) / 10,
-        cause: sim.deathCause,
-        xp: Math.floor(sim.xp.xp),
-        xpNext: sim.xp.xpForNextLevel(),
-        level: sim.xp.level,
+        hp: Math.max(0, Math.ceil(sim.hp || 0)),
+        maxHp: sim.xp ? sim.xp.maxHp : this.diff.player.maxHp,
+        hpRate: Math.round((sim.hpRate || 0) * 10) / 10,
+        cause: sim.deathCause || "cold",
+        xp: sim.xp ? Math.floor(sim.xp.xp) : 0,
+        xpNext: sim.xp ? sim.xp.xpForNextLevel() : 100,
+        level: sim.xp ? sim.xp.level : 1,
         insulation: eq.insulation(),
         weapon: w
           ? { id: w.id, name: w.name, dmg: w.dmg, rate: w.rate, art: w.art, kind: w.kind || "melee" }

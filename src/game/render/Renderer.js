@@ -148,8 +148,8 @@ export class Renderer {
 
   resize() {
     this.dpr = Math.min(2, window.devicePixelRatio || 1);
-    this.viewW = this.cv.clientWidth || window.innerWidth;
-    this.viewH = this.cv.clientHeight || window.innerHeight;
+    this.viewW = this.cv.clientWidth || window.innerWidth || 800;
+    this.viewH = this.cv.clientHeight || window.innerHeight || 600;
     this.cv.width = Math.round(this.viewW * this.dpr);
     this.cv.height = Math.round(this.viewH * this.dpr);
     this.ctx.imageSmoothingEnabled = false;
@@ -183,7 +183,15 @@ export class Renderer {
     ctx.fillStyle = "#05080f";
     ctx.fillRect(0, 0, this.viewW, this.viewH);
 
-    if (sim.map) {
+    // Отладочная информация
+    if (!sim.map) {
+      ctx.fillStyle = "#ff0000";
+      ctx.font = "20px Arial";
+      ctx.fillText("ERROR: sim.map is null", 10, 30);
+      return;
+    }
+
+    if (sim.map && sim.map.tiles) {
       ctx.save();
       ctx.translate(
         Math.round(this.viewW / 2 + camera.ox),

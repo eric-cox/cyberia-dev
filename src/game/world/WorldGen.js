@@ -18,8 +18,24 @@ export function generateWorld(seed) {
   const rng = mulberry32(seed);
   
   // ========== ЭТАП 1: Генерация города ==========
-  const cityGen = new CityGenerator(seed);
-  const tiles = cityGen.generate();
+  let tiles;
+  try {
+    const cityGen = new CityGenerator(seed);
+    tiles = cityGen.generate();
+  } catch (error) {
+    // Если генерация не удалась, создаём простую тестовую карту
+    tiles = new Uint8Array(MAP_TILES * MAP_TILES);
+    // Заполняем всё дорогами
+    for (let i = 0; i < tiles.length; i++) {
+      tiles[i] = T.ROAD;
+    }
+    // Добавляем несколько зданий
+    for (let y = 20; y < 40; y++) {
+      for (let x = 20; x < 40; x++) {
+        tiles[y * MAP_TILES + x] = T.HOUSE;
+      }
+    }
+  }
   
   const map = new WorldMap(seed, MAP_TILES, tiles);
   
