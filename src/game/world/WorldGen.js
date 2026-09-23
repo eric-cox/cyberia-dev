@@ -15,17 +15,12 @@ import {
 
 // ---------- Главная функция генерации ----------
 export function generateWorld(seed) {
-  console.log('[WorldGen] Starting world generation with seed:', seed);
   const rng = mulberry32(seed);
   
-  // ========== ЭТАП 1: Генерация города с WFC ==========
-  console.log('[WorldGen] Creating CityGenerator...');
+  // ========== ЭТАП 1: Генерация города ==========
   const cityGen = new CityGenerator(seed);
-  console.log('[WorldGen] Calling generate()...');
   const tiles = cityGen.generate();
-  console.log('[WorldGen] CityGenerator returned', tiles.length, 'tiles');
   
-  console.log('[WorldGen] Creating WorldMap...');
   const map = new WorldMap(seed, MAP_TILES, tiles);
   
   // Инициализация массивов для загрязнения и поверхностей

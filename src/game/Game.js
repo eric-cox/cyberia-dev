@@ -30,37 +30,25 @@ import { ITEMS } from "./data/items.js";
 
 export default class Game {
   constructor(canvas, hooks = {}) {
-    console.log('[Game] Constructor started');
     this.hooks = hooks;
 
     // --- сборка системы ---
-    console.log('[Game] Creating EventBus...');
     this.bus = new EventBus();
-    console.log('[Game] Creating Input...');
     this.input = new Input(canvas);
-    console.log('[Game] Creating Camera...');
     this.camera = new Camera();
-    console.log('[Game] Creating Sfx...');
     this.sfx = new Sfx();
-    console.log('[Game] Creating SaveStore...');
     this.store = new SaveStore();
-    console.log('[Game] Creating Equipment...');
     this.equipment = new Equipment(this.store);
-    console.log('[Game] Getting difficulty...');
     this.diff = getDifficulty();
-    console.log('[Game] Creating Simulation...');
     this.sim = new Simulation(this.bus, this.store, this.equipment, this.diff);
 
-    console.log('[Game] Registering art modules...');
     artSystem.registerAll(ART_MODULES);
-    console.log('[Game] Creating Renderer...');
     this.renderer = new Renderer(canvas, this.bus, { weather: this.diff.weather });
 
     this.menuT = 0;
     this.hitstop = 0;
     this.snapTimer = 0;
 
-    console.log('[Game] Wiring events...');
     this.wireEvents();
 
     this._onResize = () => this.renderer.resize();
@@ -71,13 +59,9 @@ export default class Game {
     window.addEventListener("game:suicide", this._onSuicide);
 
     // мир для фона главного меню
-    console.log('[Game] Generating initial world...');
     this.sim.generate((Math.random() * 1e9) | 0);
-    console.log('[Game] World generation complete');
 
-    console.log('[Game] Starting render loop...');
     this._raf = requestAnimationFrame(this.frame);
-    console.log('[Game] Constructor complete');
   }
 
   destroy() {
