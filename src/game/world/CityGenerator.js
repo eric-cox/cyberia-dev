@@ -43,58 +43,100 @@ export class CityGenerator {
   
   // ========== ГЛАВНЫЙ АЛГОРИТМ ==========
   generate() {
+    console.log('[CityGenerator] Starting generation...');
+    
     // Шаг 1: Дорожная сеть (скелет)
     this.generateRoadNetwork();
+    console.log('[CityGenerator] Road network generated');
     
     // Шаг 2: Разбивка на кварталы и здания (мясо)
     this.generateBuildings();
+    console.log('[CityGenerator] Buildings generated');
     
     // Шаг 3: Инфраструктура и тротуары
     this.generateSidewalks();
+    console.log('[CityGenerator] Sidewalks generated');
     
     // Шаг 4: Разметка дорог
     this.generateRoadMarkings();
+    console.log('[CityGenerator] Road markings generated');
     
     // Шаг 5: Валидация
     this.validate();
+    console.log('[CityGenerator] Validation complete');
     
-    return this.toTileMap();
+    const tiles = this.toTileMap();
+    console.log('[CityGenerator] Tile map created, total tiles:', tiles.length);
+    
+    // Подсчёт типов тайлов
+    let roadCount = 0, houseCount = 0;
+    for (let i = 0; i < tiles.length; i++) {
+      if (tiles[i] === T.ROAD) roadCount++;
+      else if (tiles[i] === T.HOUSE) houseCount++;
+    }
+    console.log('[CityGenerator] Roads:', roadCount, 'Houses:', houseCount);
+    
+    return tiles;
   }
   
   // ========== ШАГ 1: ДОРОЖНАЯ СЕТЬ ==========
   generateRoadNetwork() {
+    console.log('[RoadNetwork] Starting...');
+    
     // 1.1. Генерация магистралей (каждые 20-30 тайлов)
     const highwaySpacing = 20 + Math.floor(this.rng() * 10);
+    console.log('[RoadNetwork] Highway spacing:', highwaySpacing);
+    
+    let highwayCount = 0;
     
     // Горизонтальные магистрали
     for (let y = highwaySpacing; y < this.size - highwaySpacing; y += highwaySpacing) {
       const width = 4 + Math.floor(this.rng() * 3); // 4-6 полос
+      console.log('[RoadNetwork] Creating horizontal highway at y=' + y + ', width=' + width);
       this.drawHighway(0, y, this.size, width, 'horizontal');
+      highwayCount++;
     }
     
     // Вертикальные магистрали
     for (let x = highwaySpacing; x < this.size - highwaySpacing; x += highwaySpacing) {
       const width = 4 + Math.floor(this.rng() * 3);
+      console.log('[RoadNetwork] Creating vertical highway at x=' + x + ', width=' + width);
       this.drawHighway(x, 0, width, this.size, 'vertical');
+      highwayCount++;
     }
+    
+    console.log('[RoadNetwork] Created', highwayCount, 'highways');
     
     // 1.2. Рекурсивное разбиение для второстепенных дорог
     this.subdivideBlocks(0, 0, this.size, this.size, 3);
     
     // 1.3. Удаление 10-15% дорог для парков
     this.createParks();
+    
+    // Подсчёт дорог
+    let roadCount = 0;
+    for (let i = 0; i < this.grid.length; i++) {
+      if (this.grid[i] === TILE_TYPES.ROAD_HIGHWAY || this.grid[i] === TILE_TYPES.ROAD_SECONDARY) {
+        roadCount++;
+      }
+    }
+    console.log('[RoadNetwork] Total road tiles:', roadCount);
   }
   
   drawHighway(x, y, width, height, direction) {
+    console.log('[drawHighway] Drawing', direction, 'highway at (' + x + ',' + y + ') size ' + width + 'x' + height);
+    let count = 0;
     for (let dy = 0; dy < height; dy++) {
       for (let dx = 0; dx < width; dx++) {
         const tx = x + dx;
         const ty = y + dy;
         if (this.inBounds(tx, ty)) {
           this.grid[this.idx(tx, ty)] = TILE_TYPES.ROAD_HIGHWAY;
+          count++;
         }
       }
     }
+    console.log('[drawHighway] Drew', count, 'tiles');
   }
   
   // Рекурсивное разбиение кварталов

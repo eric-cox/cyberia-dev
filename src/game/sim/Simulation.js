@@ -68,13 +68,17 @@ export class Simulation {
 
   // Построить мир без старта забега (фон главного меню)
   generate(seed) {
+    console.log('[Simulation.generate] Starting with seed:', seed);
+    console.log('[Simulation.generate] Calling generateWorld...');
     this.map = generateWorld(seed);
+    console.log('[Simulation.generate] World generated, map:', this.map);
     this.enemies = [];
     this.pickups = [];
     this.pellets = [];
     this.ammoPickups = [];
     this.player = null;
     this.state = "menu";
+    console.log('[Simulation.generate] Complete');
   }
 
   // Полный старт забега
