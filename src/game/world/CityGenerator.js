@@ -43,8 +43,6 @@ export class CityGenerator {
   
   // ========== ГЛАВНЫЙ АЛГОРИТМ ==========
   generate() {
-    console.time('City generation');
-    
     // Шаг 1: Дорожная сеть (скелет)
     this.generateRoadNetwork();
     
@@ -60,15 +58,11 @@ export class CityGenerator {
     // Шаг 5: Валидация
     this.validate();
     
-    console.timeEnd('City generation');
-    
     return this.toTileMap();
   }
   
   // ========== ШАГ 1: ДОРОЖНАЯ СЕТЬ ==========
   generateRoadNetwork() {
-    console.time('Road network');
-    
     // 1.1. Генерация магистралей (каждые 20-30 тайлов)
     const highwaySpacing = 20 + Math.floor(this.rng() * 10);
     
@@ -89,8 +83,6 @@ export class CityGenerator {
     
     // 1.3. Удаление 10-15% дорог для парков
     this.createParks();
-    
-    console.timeEnd('Road network');
   }
   
   drawHighway(x, y, width, height, direction) {
@@ -223,8 +215,6 @@ export class CityGenerator {
   
   // ========== ШАГ 2: ЗДАНИЯ ==========
   generateBuildings() {
-    console.time('Buildings');
-    
     const blocks = this.findBlocks();
     
     for (const block of blocks) {
@@ -238,8 +228,6 @@ export class CityGenerator {
         }
       }
     }
-    
-    console.timeEnd('Buildings');
   }
   
   // BSP-разбиение участка
@@ -375,8 +363,6 @@ export class CityGenerator {
   
   // ========== ШАГ 3: ТРОТУАРЫ ==========
   generateSidewalks() {
-    console.time('Sidewalks');
-    
     // Находим все дороги и добавляем тротуары вокруг них
     for (let y = 0; y < this.size; y++) {
       for (let x = 0; x < this.size; x++) {
@@ -392,8 +378,6 @@ export class CityGenerator {
     
     // Скругляем углы тротуаров на перекрёстках
     this.roundSidewalkCorners();
-    
-    console.timeEnd('Sidewalks');
   }
   
   addSidewalksAround(x, y) {
@@ -456,14 +440,10 @@ export class CityGenerator {
   
   // ========== ШАГ 4: РАЗМЕТКА ==========
   generateRoadMarkings() {
-    console.time('Road markings');
-    
     // Добавляем пешеходные переходы на перекрёстках
     for (const intersection of this.intersections) {
       this.addCrosswalks(intersection.x, intersection.y);
     }
-    
-    console.timeEnd('Road markings');
   }
   
   addCrosswalks(x, y) {
@@ -506,8 +486,6 @@ export class CityGenerator {
   
   // ========== ШАГ 5: ВАЛИДАЦИЯ ==========
   validate() {
-    console.time('Validation');
-    
     // 1. Проверка связности дорог
     this.validateRoadConnectivity();
     
@@ -516,8 +494,6 @@ export class CityGenerator {
     
     // 3. Заполняем оставшиеся пустые места тротуарами
     this.fillEmptySpaces();
-    
-    console.timeEnd('Validation');
   }
   
   validateRoadConnectivity() {

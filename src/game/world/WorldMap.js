@@ -23,8 +23,6 @@ export class WorldMap {
     this.streetDetails = []; // { kind:"manhole", x, y, ... }
     this.bands = null; // индекс: band[радиус] → [индексы проходимых ячеек]
     this.houseData = new Map(); // метаданные домов: key = "x,y" → { height, windows, sign }
-    this.objects = []; // уличные объекты (префабы)
-    this.buildings = []; // здания (для отрисовки и логики)
     this.debris = null; // Uint8Array size*size — типы загрязнения (DEBRIS_TYPE)
     this.surface = null; // Uint8Array size*size — типы поверхностей (SURFACE_TYPE)
   }

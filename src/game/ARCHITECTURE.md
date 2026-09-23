@@ -45,9 +45,9 @@
 | core | `core/Utils.js`, `core/Rng.js`, `core/EventBus.js`, `core/Constants.js` | Утилиты, детерминированный РНГ, шина событий, тайлы |
 | engine | `engine/Input.js`, `engine/Camera.js` | Команда игрока за кадр; камера + тряска |
 | systems | `systems/Difficulty.js`, `systems/SaveStore.js`, `systems/Sfx.js` | Баланс (единый источник чисел), персистентность, звук |
-| data | `data/items.js`, `data/bestiary.js` | Реестр артефактов (одежда/оружие, тиры); описания врагов (лор для бестиария) |
+| data | `data/items.js` | Реестр артефактов (одежда/оружие, тиры) |
 | loot | `loot/Equipment.js`, `loot/RunLoot.js` | Diablo-экипировка (слоты, надеть/снять/выброс); лут-улучшения надетого (0–2 шт., только сильнее) + патроны |
-| world | `world/tiles.js`, `world/WorldMap.js`, `world/WorldGen.js`, `world/prefabs.js`, `world/streetTypes.js`, `world/streetNetwork.js` | Реестр ячеек (speed/inertia/solid); данные карты + запросы; генерация района (6 этапов); каталог префабов (уличные объекты); система типов улиц; 4-фазный алгоритм генерации уличной сети |
+| world | `world/tiles.js`, `world/WorldMap.js`, `world/WorldGen.js`, `world/CityGenerator.js`, `world/streetTypes.js` | Реестр ячеек (speed/inertia/solid); данные карты + запросы; генерация города (WFC); типы поверхностей и параметры |
 | sim | `sim/Simulation.js`, `sim/Movement.js`, `sim/Player.js`, `sim/Pickup.js`, `sim/Experience.js`, `sim/Entity.js` | Чистая игровая логика забега; инерционное движение; опыт и уровни |
 | sim/enemies | `Enemy.js` (базовый ИИ) + файлы видов + `registry.js` + `EnemyFactory.js` | Типы врагов и правила расселения |
 | render | `Renderer.js`, `painters.js`, `TerrainPainter.js`, `Fx.js`, `Weather.js` | Вся отрисовка; эффекты-подписчики событий |

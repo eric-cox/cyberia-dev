@@ -45,15 +45,6 @@ export function paintTerrain(map) {
     }
   }
 
-  // Рендеринг уличных объектов (префабы)
-  if (map.objects) {
-    for (const obj of map.objects) {
-      if (!obj.isCollision) {
-        paintPrefab(ctx, obj);
-      }
-    }
-  }
-
   // Атмосферные эффекты (ART.MD §9)
   paintAtmosphericEffects(ctx, map, rng);
 
@@ -446,24 +437,6 @@ function paintBuilding(ctx, map, tx, ty, px, py, rng) {
     ctx.fillRect(px + TILE - edgeSize, py, edgeSize, TILE);
   }
 }
-
-// ---------- отрисовка префаба (упрощённая, KISS) ----------
-function paintPrefab(ctx, obj) {
-  const { x, y, prefab } = obj;
-  const px = x * TILE;
-  const py = y * TILE;
-  
-  ctx.fillStyle = prefab.color;
-  ctx.fillRect(px, py, prefab.width * TILE, prefab.height * TILE);
-  
-  // Тень для твёрдых объектов
-  if (prefab.solid) {
-    ctx.fillStyle = "rgba(0, 0, 0, 0.3)";
-    ctx.fillRect(px + 2, py + 2, prefab.width * TILE - 4, prefab.height * TILE - 4);
-  }
-}
-
-
 
 // ---------- база миникарты (1px на тайл) ----------
 export function paintMinimapBase(map) {
