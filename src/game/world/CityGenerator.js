@@ -541,7 +541,6 @@ export class CityGenerator {
     
     // Если есть несколько компонентов, соединяем их
     if (components.length > 1) {
-      console.warn(`Found ${components.length} disconnected road components. Connecting...`);
       this.connectRoadComponents(components);
     }
   }
@@ -605,7 +604,7 @@ export class CityGenerator {
         const idx = this.idx(tx, ty);
         
         if (this.grid[idx] !== TILE_TYPES.BUILDING) {
-          console.warn(`Building collision at (${tx}, ${ty})`);
+          // Building collision detected
         }
       }
     }
