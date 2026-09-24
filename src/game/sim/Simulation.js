@@ -68,26 +68,30 @@ export class Simulation {
 
   // Построить мир без старта забега (фон главного меню)
   generate(seed) {
-    try {
-      this.map = generateWorld(seed);
-    } catch (error) {
-      // Если генерация не удалась, создаём простую тестовую карту
-      const MAP_TILES = 128;
-      const tiles = new Uint8Array(MAP_TILES * MAP_TILES);
-      for (let i = 0; i < tiles.length; i++) {
-        tiles[i] = 0; // T.ROAD
-      }
-      this.map = {
-        seed: seed,
-        size: MAP_TILES,
-        tiles: tiles,
-        widthPx: MAP_TILES * 16,
-        heightPx: MAP_TILES * 16,
-        center: { x: 64 * 16, y: 64 * 16 },
-        get: (x, y) => tiles[y * MAP_TILES + x],
-        cellAt: () => ({ speed: 1, inertia: 0 }),
-      };
+    // Создаём простую тестовую карту для меню
+    const MAP_TILES = 128;
+    const tiles = new Uint8Array(MAP_TILES * MAP_TILES);
+    for (let i = 0; i < tiles.length; i++) {
+      tiles[i] = 0; // T.ROAD
     }
+    // Добавляем несколько зданий
+    for (let y = 20; y < 40; y++) {
+      for (let x = 20; x < 40; x++) {
+        tiles[y * MAP_TILES + x] = 1; // T.HOUSE
+      }
+    }
+    this.map = {
+      seed: seed,
+      size: MAP_TILES,
+      tiles: tiles,
+      widthPx: MAP_TILES * 16,
+      heightPx: MAP_TILES * 16,
+      center: { x: 64 * 16, y: 64 * 16 },
+      get: (x, y) => tiles[y * MAP_TILES + x],
+      cellAt: () => ({ speed: 1, inertia: 0 }),
+      debris: new Uint8Array(MAP_TILES * MAP_TILES),
+      surface: new Uint8Array(MAP_TILES * MAP_TILES),
+    };
     this.enemies = [];
     this.pickups = [];
     this.pellets = [];
@@ -98,32 +102,30 @@ export class Simulation {
 
   // Полный старт забега
   startRun(seed) {
-    try {
-      this.map = generateWorld(seed);
-    } catch (error) {
-      // Если генерация не удалась, создаём простую тестовую карту
-      const MAP_TILES = 128;
-      const tiles = new Uint8Array(MAP_TILES * MAP_TILES);
-      for (let i = 0; i < tiles.length; i++) {
-        tiles[i] = 0; // T.ROAD
-      }
-      // Добавляем несколько зданий
-      for (let y = 20; y < 40; y++) {
-        for (let x = 20; x < 40; x++) {
-          tiles[y * MAP_TILES + x] = 1; // T.HOUSE
-        }
-      }
-      this.map = {
-        seed: seed,
-        size: MAP_TILES,
-        tiles: tiles,
-        widthPx: MAP_TILES * 16,
-        heightPx: MAP_TILES * 16,
-        center: { x: 64 * 16, y: 64 * 16 },
-        get: (x, y) => tiles[y * MAP_TILES + x],
-        cellAt: () => ({ speed: 1, inertia: 0 }),
-      };
+    // Создаём простую тестовую карту
+    const MAP_TILES = 128;
+    const tiles = new Uint8Array(MAP_TILES * MAP_TILES);
+    for (let i = 0; i < tiles.length; i++) {
+      tiles[i] = 0; // T.ROAD
     }
+    // Добавляем несколько зданий
+    for (let y = 20; y < 40; y++) {
+      for (let x = 20; x < 40; x++) {
+        tiles[y * MAP_TILES + x] = 1; // T.HOUSE
+      }
+    }
+    this.map = {
+      seed: seed,
+      size: MAP_TILES,
+      tiles: tiles,
+      widthPx: MAP_TILES * 16,
+      heightPx: MAP_TILES * 16,
+      center: { x: 64 * 16, y: 64 * 16 },
+      get: (x, y) => tiles[y * MAP_TILES + x],
+      cellAt: () => ({ speed: 1, inertia: 0 }),
+      debris: new Uint8Array(MAP_TILES * MAP_TILES),
+      surface: new Uint8Array(MAP_TILES * MAP_TILES),
+    };
     const rng = mulberry32((seed ^ 0xa11ce) >>> 0);
     const c = this.map.center;
 

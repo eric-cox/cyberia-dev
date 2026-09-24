@@ -30,81 +30,62 @@ import { ITEMS } from "./data/items.js";
 
 export default class Game {
   constructor(canvas, hooks = {}) {
-    console.log("[Game] Constructor started");
     this.hooks = hooks;
 
-    try {
-      // --- сборка системы ---
-      console.log("[Game] Creating EventBus...");
-      this.bus = new EventBus();
-      console.log("[Game] Creating Input...");
-      this.input = new Input(canvas);
-      console.log("[Game] Creating Camera...");
-      this.camera = new Camera();
-      console.log("[Game] Creating Sfx...");
-      this.sfx = new Sfx();
-      console.log("[Game] Creating SaveStore...");
-      this.store = new SaveStore();
-      console.log("[Game] Creating Equipment...");
-      this.equipment = new Equipment(this.store);
-      console.log("[Game] Getting difficulty...");
-      this.diff = getDifficulty();
-      console.log("[Game] Creating Simulation...");
-      this.sim = new Simulation(this.bus, this.store, this.equipment, this.diff);
+    // --- сборка системы ---
+    this.bus = new EventBus();
+    this.input = new Input(canvas);
+    this.camera = new Camera();
+    this.sfx = new Sfx();
+    this.store = new SaveStore();
+    this.equipment = new Equipment(this.store);
+    this.diff = getDifficulty();
+    this.sim = new Simulation(this.bus, this.store, this.equipment, this.diff);
 
-      console.log("[Game] Registering art modules...");
-      artSystem.registerAll(ART_MODULES);
-      console.log("[Game] Creating Renderer...");
-      this.renderer = new Renderer(canvas, this.bus, { weather: this.diff.weather });
+    artSystem.registerAll(ART_MODULES);
+    this.renderer = new Renderer(canvas, this.bus, { weather: this.diff.weather });
 
-      this.menuT = 0;
-      this.hitstop = 0;
-      this.snapTimer = 0;
+    this.menuT = 0;
+    this.hitstop = 0;
+    this.snapTimer = 0;
 
-      console.log("[Game] Wiring events...");
-      this.wireEvents();
+    this.wireEvents();
 
-      this._onResize = () => this.renderer.resize();
-      window.addEventListener("resize", this._onResize);
+    this._onResize = () => this.renderer.resize();
+    window.addEventListener("resize", this._onResize);
 
-      // Обработчик кнопки самоубийства из HUD
-      this._onSuicide = () => this.bus.emit("suicide");
-      window.addEventListener("game:suicide", this._onSuicide);
+    // Обработчик кнопки самоубийства из HUD
+    this._onSuicide = () => this.bus.emit("suicide");
+    window.addEventListener("game:suicide", this._onSuicide);
 
-      // мир для фона главного меню
-      console.log("[Game] Generating initial world...");
-      try {
-        this.sim.generate((Math.random() * 1e9) | 0);
-      } catch (error) {
-        console.error("[Game] Error generating world:", error);
-        // Если генерация не удалась, создаём простую тестовую карту
-        const tiles = new Uint8Array(128 * 128);
-        for (let i = 0; i < tiles.length; i++) {
-          tiles[i] = 0; // T.ROAD
-        }
-        this.sim.map = {
-          seed: 0,
-          size: 128,
-          tiles: tiles,
-          widthPx: 128 * 16,
-          heightPx: 128 * 16,
-          center: { x: 64 * 16, y: 64 * 16 },
-          get: (x, y) => tiles[y * 128 + x],
-          cellAt: () => ({ speed: 1, inertia: 0 }),
-        };
-      }
-
-      // Отправляем начальный снапшот для меню
-      console.log("[Game] Pushing initial snapshot...");
-      this.pushSnapshot();
-
-      console.log("[Game] Starting render loop...");
-      this._raf = requestAnimationFrame(this.frame);
-      console.log("[Game] Constructor completed successfully");
-    } catch (error) {
-      console.error("[Game] Fatal error in constructor:", error);
-      throw error;
+    // Создаём простую тестовую карту для меню (без CityGenerator)
+    const tiles = new Uint8Array(128 * 128);
+    for (let i = 0; i < tiles.length; i++) {
+      tiles[i] = 0; // T.ROAD
     }
+    // Добавляем несколько зданий
+    for (let y = 20; y < 40; y++) {
+      for (let x = 20; x < 40; x++) {
+        tiles[y * 128 + x] = 1; // T.HOUSE
+      }
+    }
+    this.sim.map = {
+      seed: 0,
+      size: 128,
+      tiles: tiles,
+      widthPx: 128 * 16,
+      heightPx: 128 * 16,
+      center: { x: 64 * 16, y: 64 * 16 },
+      get: (x, y) => tiles[y * 128 + x],
+      cellAt: () => ({ speed: 1, inertia: 0 }),
+      debris: new Uint8Array(128 * 128),
+      surface: new Uint8Array(128 * 128),
+    };
+
+    // Отправляем начальный снапшот для меню
+    this.pushSnapshot();
+
+    this._raf = requestAnimationFrame(this.frame);
   }
 
   destroy() {
