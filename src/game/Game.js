@@ -27,6 +27,8 @@ import { Renderer } from "./render/Renderer.js";
 import { artSystem } from "./art/pixel.js";
 import { ART_MODULES } from "./art/modules.js";
 import { ITEMS } from "./data/items.js";
+import { WorldMap } from "./world/WorldMap.js";
+import { T } from "./world/tiles.js";
 
 export default class Game {
   constructor(canvas, hooks = {}) {
@@ -58,29 +60,22 @@ export default class Game {
     this._onSuicide = () => this.bus.emit("suicide");
     window.addEventListener("game:suicide", this._onSuicide);
 
-    // Создаём простую тестовую карту для меню (без CityGenerator)
-    const tiles = new Uint8Array(128 * 128);
-    for (let i = 0; i < tiles.length; i++) {
-      tiles[i] = 0; // T.ROAD
+    // Создаём простую тестовую карту для меню
+    const testTiles = new Uint8Array(128 * 128);
+    for (let i = 0; i < testTiles.length; i++) {
+      testTiles[i] = T.ROAD;
     }
     // Добавляем несколько зданий
     for (let y = 20; y < 40; y++) {
       for (let x = 20; x < 40; x++) {
-        tiles[y * 128 + x] = 1; // T.HOUSE
+        testTiles[y * 128 + x] = T.HOUSE;
       }
     }
-    this.sim.map = {
-      seed: 0,
-      size: 128,
-      tiles: tiles,
-      widthPx: 128 * 16,
-      heightPx: 128 * 16,
-      center: { x: 64 * 16, y: 64 * 16 },
-      get: (x, y) => tiles[y * 128 + x],
-      cellAt: () => ({ speed: 1, inertia: 0 }),
-      debris: new Uint8Array(128 * 128),
-      surface: new Uint8Array(128 * 128),
-    };
+    const testMap = new WorldMap(0, 128, testTiles);
+    testMap.debris = new Uint8Array(128 * 128);
+    testMap.surface = new Uint8Array(128 * 128);
+    testMap.buildBands();
+    this.sim.map = testMap;
 
     // Отправляем начальный снапшот для меню
     this.pushSnapshot();

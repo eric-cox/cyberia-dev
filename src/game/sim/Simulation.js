@@ -25,6 +25,8 @@ import { Player } from "./Player.js";
 import { Experience } from "./Experience.js";
 import { Pellet } from "./Pellet.js";
 import { populateEnemies, spawnLootGuards } from "./enemies/EnemyFactory.js";
+import { WorldMap } from "../world/WorldMap.js";
+import { T } from "../world/tiles.js";
 
 // дробовик: время перезарядки и ёмкость ствола
 export const SHOTGUN_RELOAD = 2;
@@ -72,26 +74,19 @@ export class Simulation {
     const MAP_TILES = 128;
     const tiles = new Uint8Array(MAP_TILES * MAP_TILES);
     for (let i = 0; i < tiles.length; i++) {
-      tiles[i] = 0; // T.ROAD
+      tiles[i] = T.ROAD;
     }
     // Добавляем несколько зданий
     for (let y = 20; y < 40; y++) {
       for (let x = 20; x < 40; x++) {
-        tiles[y * MAP_TILES + x] = 1; // T.HOUSE
+        tiles[y * MAP_TILES + x] = T.HOUSE;
       }
     }
-    this.map = {
-      seed: seed,
-      size: MAP_TILES,
-      tiles: tiles,
-      widthPx: MAP_TILES * 16,
-      heightPx: MAP_TILES * 16,
-      center: { x: 64 * 16, y: 64 * 16 },
-      get: (x, y) => tiles[y * MAP_TILES + x],
-      cellAt: () => ({ speed: 1, inertia: 0 }),
-      debris: new Uint8Array(MAP_TILES * MAP_TILES),
-      surface: new Uint8Array(MAP_TILES * MAP_TILES),
-    };
+    this.map = new WorldMap(seed, MAP_TILES, tiles);
+    this.map.debris = new Uint8Array(MAP_TILES * MAP_TILES);
+    this.map.surface = new Uint8Array(MAP_TILES * MAP_TILES);
+    this.map.buildBands();
+    
     this.enemies = [];
     this.pickups = [];
     this.pellets = [];
@@ -106,26 +101,19 @@ export class Simulation {
     const MAP_TILES = 128;
     const tiles = new Uint8Array(MAP_TILES * MAP_TILES);
     for (let i = 0; i < tiles.length; i++) {
-      tiles[i] = 0; // T.ROAD
+      tiles[i] = T.ROAD;
     }
     // Добавляем несколько зданий
     for (let y = 20; y < 40; y++) {
       for (let x = 20; x < 40; x++) {
-        tiles[y * MAP_TILES + x] = 1; // T.HOUSE
+        tiles[y * MAP_TILES + x] = T.HOUSE;
       }
     }
-    this.map = {
-      seed: seed,
-      size: MAP_TILES,
-      tiles: tiles,
-      widthPx: MAP_TILES * 16,
-      heightPx: MAP_TILES * 16,
-      center: { x: 64 * 16, y: 64 * 16 },
-      get: (x, y) => tiles[y * MAP_TILES + x],
-      cellAt: () => ({ speed: 1, inertia: 0 }),
-      debris: new Uint8Array(MAP_TILES * MAP_TILES),
-      surface: new Uint8Array(MAP_TILES * MAP_TILES),
-    };
+    this.map = new WorldMap(seed, MAP_TILES, tiles);
+    this.map.debris = new Uint8Array(MAP_TILES * MAP_TILES);
+    this.map.surface = new Uint8Array(MAP_TILES * MAP_TILES);
+    this.map.buildBands();
+    
     const rng = mulberry32((seed ^ 0xa11ce) >>> 0);
     const c = this.map.center;
 
